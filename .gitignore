@@ -1,40 +1,40 @@
-# 의존성 패키지
+# Dependencies
 node_modules/
 
-# 환경 변수 파일
+# Environment variables
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# 로그 파일
+# Log files
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# 런타임 데이터
+# Runtime data
 pids
 *.pid
 *.seed
 *.pid.lock
 
-# 디렉토리
+# Directories
 .npm
 .eslintcache
 .node_repl_history
 
-# 출력 디렉토리
+# Output directories
 dist/
 build/
 out/
 
-# 맥 파일
+# Mac files
 .DS_Store
 
-# IDE 설정
+# IDE settings
 .idea/
 .vscode/
 *.swp
