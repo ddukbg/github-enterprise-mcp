@@ -5,6 +5,7 @@ import { Config, loadConfig } from '../utils/config.js';
 import { GitHubClient } from '../utils/client.js';
 import { RepositoryAPI } from '../api/repos/repository.js';
 import { AdminAPI } from '../api/admin/admin.js';
+import * as PullsAPI from '../api/pulls/pulls.js';
 import { startHttpServer } from './http.js';
 
 // 공통 GitHub 클라이언트 인스턴스
@@ -12,6 +13,7 @@ export interface GitHubContext {
   client: GitHubClient;
   repository: RepositoryAPI;
   admin: AdminAPI;
+  pulls: typeof PullsAPI;
 }
 
 // GitHub Enterprise를 위한 MCP 서버 옵션 인터페이스
@@ -113,12 +115,14 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
   // API 인스턴스 생성
   const repository = new RepositoryAPI(client);
   const admin = new AdminAPI(client);
+  const pulls = PullsAPI;
 
   // 컨텍스트 생성
   const context: GitHubContext = {
     client,
     repository,
-    admin
+    admin,
+    pulls
   };
 
   // MCP 서버 생성
@@ -439,6 +443,400 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
     }
   );
 
+  // PR 목록 조회 도구
+  server.tool(
+    "list-pull-requests",
+    {
+      owner: z.string().describe("Repository owner (user or organization)"),
+      repo: z.string().describe("Repository name"),
+      state: z.enum(['open', 'closed', 'all']).default('open').describe("PR state filter"),
+      sort: z.enum(['created', 'updated', 'popularity', 'long-running']).default('created').describe("Sort criteria"),
+      direction: z.enum(['asc', 'desc']).default('desc').describe("Sort direction"),
+      page: z.number().default(1).describe("Page number"),
+      per_page: z.number().default(30).describe("Items per page")
+    },
+    async ({ owner, repo, state, sort, direction, page, per_page }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository owner (owner) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository name (repo) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const pullRequests = await context.pulls.listPullRequests(context.client, {
+          owner,
+          repo,
+          state,
+          sort,
+          direction,
+          page,
+          per_page
+        });
+
+        // No PRs found
+        if (!pullRequests || pullRequests.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `No pull requests found in repository '${owner}/${repo}' with state '${state}'.`
+              }
+            ]
+          };
+        }
+
+        // Format PR info for better readability
+        const formattedPRs = pullRequests.map(pr => ({
+          number: pr.number,
+          title: pr.title,
+          state: pr.state,
+          user: pr.user.login,
+          created_at: pr.created_at,
+          updated_at: pr.updated_at,
+          head: `${pr.head.repo.full_name}:${pr.head.ref}`,
+          base: `${pr.base.repo.full_name}:${pr.base.ref}`,
+          url: `${pr.number}`
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Pull requests in repository '${owner}/${repo}' (${pullRequests.length}):\n\n${JSON.stringify(formattedPRs, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error fetching pull requests:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while fetching pull requests: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // PR 상세 조회 도구
+  server.tool(
+    "get-pull-request",
+    {
+      owner: z.string().describe("Repository owner (user or organization)"),
+      repo: z.string().describe("Repository name"),
+      pull_number: z.number().describe("Pull request number")
+    },
+    async ({ owner, repo, pull_number }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository owner (owner) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository name (repo) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!pull_number || typeof pull_number !== 'number') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Pull request number (pull_number) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const pullRequest = await context.pulls.getPullRequest(context.client, {
+          owner,
+          repo,
+          pull_number
+        });
+
+        // Format PR info for better readability
+        const formattedPR = {
+          number: pullRequest.number,
+          title: pullRequest.title,
+          body: pullRequest.body,
+          state: pullRequest.state,
+          user: pullRequest.user.login,
+          created_at: pullRequest.created_at,
+          updated_at: pullRequest.updated_at,
+          closed_at: pullRequest.closed_at,
+          merged_at: pullRequest.merged_at,
+          head: {
+            ref: pullRequest.head.ref,
+            sha: pullRequest.head.sha,
+            repo: pullRequest.head.repo.full_name
+          },
+          base: {
+            ref: pullRequest.base.ref,
+            sha: pullRequest.base.sha,
+            repo: pullRequest.base.repo.full_name
+          },
+          merged: pullRequest.merged,
+          mergeable: pullRequest.mergeable,
+          comments: pullRequest.comments,
+          commits: pullRequest.commits,
+          additions: pullRequest.additions,
+          deletions: pullRequest.deletions,
+          changed_files: pullRequest.changed_files,
+          url: `${pullRequest.number}`
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Pull request #${pull_number} details:\n\n${JSON.stringify(formattedPR, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error fetching pull request details:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while fetching pull request details: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // PR 생성 도구
+  server.tool(
+    "create-pull-request",
+    {
+      owner: z.string().describe("Repository owner (user or organization)"),
+      repo: z.string().describe("Repository name"),
+      title: z.string().describe("Pull request title"),
+      head: z.string().describe("Head branch (e.g., 'username:feature' or just 'feature' for same repo)"),
+      base: z.string().describe("Base branch (e.g., 'main')"),
+      body: z.string().optional().describe("Pull request description"),
+      draft: z.boolean().default(false).describe("Create as draft PR")
+    },
+    async ({ owner, repo, title, head, base, body, draft }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository owner (owner) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository name (repo) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!title || typeof title !== 'string' || title.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Pull request title (title) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!head || typeof head !== 'string' || head.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Head branch (head) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!base || typeof base !== 'string' || base.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Base branch (base) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const pullRequest = await context.pulls.createPullRequest(context.client, {
+          owner,
+          repo,
+          title,
+          head,
+          base,
+          body,
+          draft
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully created pull request #${pullRequest.number}: "${pullRequest.title}"`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error creating pull request:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while creating pull request: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // PR 병합 도구
+  server.tool(
+    "merge-pull-request",
+    {
+      owner: z.string().describe("Repository owner (user or organization)"),
+      repo: z.string().describe("Repository name"),
+      pull_number: z.number().describe("Pull request number"),
+      commit_title: z.string().optional().describe("Title for the automatic commit message"),
+      commit_message: z.string().optional().describe("Extra detail to append to automatic commit message"),
+      merge_method: z.enum(['merge', 'squash', 'rebase']).default('merge').describe("Merge method to use")
+    },
+    async ({ owner, repo, pull_number, commit_title, commit_message, merge_method }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository owner (owner) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository name (repo) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!pull_number || typeof pull_number !== 'number') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Pull request number (pull_number) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const result = await context.pulls.mergePullRequest(context.client, {
+          owner,
+          repo,
+          pull_number,
+          commit_title,
+          commit_message,
+          merge_method
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully merged pull request #${pull_number}.\nResult: ${result.message}\nCommit SHA: ${result.sha}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error merging pull request:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while merging pull request: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
   // 라이센스 정보 조회 도구 (GitHub Enterprise Server 전용 API)
   server.tool(
     "get-license-info",
@@ -536,4 +934,4 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
 // CLI 실행일 경우 자동으로 서버 시작
 if (import.meta.url === import.meta.resolve(process.argv[1])) {
   startServer();
-} 
+}
