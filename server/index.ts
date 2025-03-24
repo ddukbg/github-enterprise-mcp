@@ -899,33 +899,33 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
     }
   );
   
-  // 서버 시작
+  // Server start
   if (options.transport === 'http') {
-    // HTTP 트랜스포트 사용
+    // Using HTTP transport
     const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
     await startHttpServer(server, port);
-    console.log(`GitHub Enterprise MCP HTTP 서버가 시작되었습니다. (포트: ${port})`);
-    console.log(`사용 중인 GitHub API URL: ${config.baseUrl}`);
+    console.log(`GitHub Enterprise MCP HTTP server started. (Port: ${port})`);
+    console.log(`Using GitHub API URL: ${config.baseUrl}`);
   } else {
-    // 기본 stdio 트랜스포트 사용
+    // Using default stdio transport
     const transport = new StdioServerTransport();
     
-    // Cursor와의 통신을 위해 stdin 입력 처리를 유지
+    // Keep stdin input processing for communication with Cursor
     process.stdin.resume();
     
-    // 연결 오류 처리
+    // Handle connection errors
     try {
       await server.connect(transport);
-      console.log(`GitHub Enterprise MCP 서버가 시작되었습니다. (${options.transport || 'stdio'})`);
-      console.log(`사용 중인 GitHub API URL: ${config.baseUrl}`);
+      console.log(`GitHub Enterprise MCP server started. (${options.transport || 'stdio'})`);
+      console.log(`Using GitHub API URL: ${config.baseUrl}`);
       
-      // 연결 종료 시 처리
+      // Handle connection termination
       process.on('SIGINT', () => {
-        console.log('서버 종료 중...');
+        console.log('Shutting down server...');
         process.exit(0);
       });
     } catch (error: any) {
-      console.error(`MCP 서버 연결 실패: ${error.message}`);
+      console.error(`MCP server connection failed: ${error.message}`);
       process.exit(1);
     }
   }
