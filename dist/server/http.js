@@ -1,24 +1,24 @@
 import express from 'express';
 import cors from 'cors';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-// 세션별 트랜스포트 저장소
+// Session-based transport storage
 const transportMap = new Map();
-// 연결 상태 저장소
+// Connection status storage
 const connectionStatus = new Map();
 /**
- * HTTP 서버를 통해 MCP 서버를 실행합니다.
+ * Run an MCP server through an HTTP server.
  *
- * @param server MCP 서버 인스턴스
- * @param port 서버 포트 (기본값: 3000)
- * @returns Express 앱 인스턴스
+ * @param server MCP server instance
+ * @param port Server port (default: 3000)
+ * @returns Express app instance
  */
 export async function startHttpServer(server, port = 3000) {
     const app = express();
-    // CORS 설정
+    // CORS configuration
     app.use(cors());
-    // JSON 파싱
+    // JSON parsing
     app.use(express.json());
-    // 상태 확인 엔드포인트
+    // Health check endpoint
     app.get('/health', (req, res) => {
         res.json({
             status: 'ok',
@@ -26,32 +26,36 @@ export async function startHttpServer(server, port = 3000) {
             version: '1.0.0'
         });
     });
-    // MCP SSE 엔드포인트
+    // MCP SSE endpoint
     app.get('/sse', async (req, res) => {
         try {
-            // 세션 ID 생성 - Cursor에서 제공하는 세션 ID 사용
+            // Generate session ID - use session ID provided by Cursor
             const sessionId = req.query.sessionId ||
                 Math.random().toString(36).substring(2, 15) +
                     Math.random().toString(36).substring(2, 15);
-            console.log(`새 SSE 연결 설정: 세션 ID ${sessionId}`);
-            // 중요: SDK의 SSEServerTransport가 헤더를 설정할 수 있도록 함
-            // SSE 트랜스포트 생성
+            if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+                console.log(`New SSE connection: ${sessionId}`);
+            }
+            // Important: Allow SDK's SSEServerTransport to set headers
+            // Create SSE transport
             const transport = new SSEServerTransport(`/messages?sessionId=${sessionId}`, res);
-            // 연결 상태 저장
+            // Store connection status
             connectionStatus.set(sessionId, true);
             transportMap.set(sessionId, transport);
-            // 서버에 연결
+            // Connect to server
             await server.connect(transport);
-            // 클라이언트 연결 끊김 처리
+            // Handle client disconnection
             req.on('close', () => {
-                console.log(`세션 ID ${sessionId} 연결 종료`);
+                if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+                    console.log(`Connection closed: ${sessionId}`);
+                }
                 connectionStatus.set(sessionId, false);
                 transportMap.delete(sessionId);
             });
         }
         catch (error) {
-            console.error('SSE 연결 설정 오류:', error.message);
-            // 이미 헤더가 전송되었을 수 있으므로 try/catch로 오류 방지
+            console.error('SSE connection error:', error.message);
+            // Prevent errors in case headers have already been sent
             try {
                 if (!res.headersSent) {
                     res.status(500).send('Internal Server Error');
@@ -60,81 +64,87 @@ export async function startHttpServer(server, port = 3000) {
             catch { }
         }
     });
-    // 메시지 엔드포인트
+    // Messages endpoint
     app.post('/messages', express.json(), async (req, res) => {
         try {
-            // URL에서 sessionId 파라미터 추출
+            // Extract sessionId parameter from URL
             const urlSessionId = req.query.sessionId;
             if (!urlSessionId) {
-                console.error('세션 ID가 없습니다');
+                console.error('No session ID provided');
                 return res.status(400).json({
-                    error: '세션 ID가 필요합니다',
-                    message: '요청에 유효한 세션 ID가 포함되어 있지 않습니다.'
+                    error: 'Session ID required',
+                    message: 'The request does not include a valid session ID.'
                 });
             }
-            // 요청 내용 검증
+            // Validate request content
             if (!req.body || !req.body.method) {
-                console.error('잘못된 요청 형식:', JSON.stringify(req.body));
+                console.error('Invalid request format:', JSON.stringify(req.body));
                 return res.status(400).json({
-                    error: '잘못된 요청 형식',
-                    message: '요청에 method 필드가 필요합니다.'
+                    error: 'Invalid request format',
+                    message: 'The request must include a method field.'
                 });
             }
-            // URL의 sessionId만 사용
+            // Use only sessionId from URL
             const cleanSessionId = urlSessionId.split('?')[0];
-            console.log(`메시지 처리: 세션 ID ${cleanSessionId}, 메소드: ${req.body.method}`);
+            if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+                console.log(`Message: ${cleanSessionId}, method: ${req.body.method}`);
+            }
             const transport = transportMap.get(cleanSessionId);
             if (!transport) {
-                console.error(`세션 ID ${cleanSessionId}에 대한 트랜스포트를 찾을 수 없습니다`);
-                console.log('현재 활성 세션 IDs:', Array.from(transportMap.keys()));
+                console.error(`Transport not found for session ${cleanSessionId}`);
+                if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+                    console.log('Active sessions:', Array.from(transportMap.keys()));
+                }
                 return res.status(404).json({
-                    error: '트랜스포트를 찾을 수 없음',
-                    message: '이 세션에 대한 활성 연결이 없습니다. 새로고침 후 다시 시도하세요.'
+                    error: 'Transport not found',
+                    message: 'No active connection exists for this session. Please refresh and try again.'
                 });
             }
-            // 연결 상태 확인
+            // Check connection status
             const isConnected = connectionStatus.get(cleanSessionId);
             if (!isConnected) {
-                console.error(`세션 ID ${cleanSessionId}에 대한 연결이 닫혔습니다`);
+                console.error(`Connection for session ${cleanSessionId} has been closed`);
                 return res.status(400).json({
-                    error: '연결 종료됨',
-                    message: '연결이 종료되었습니다. 새로고침 후 다시 시도하세요.'
+                    error: 'Connection closed',
+                    message: 'The connection has been closed. Please refresh and try again.'
                 });
             }
-            console.log('요청 내용:', JSON.stringify(req.body));
-            // SSEServerTransport를 사용하여 메시지 처리
+            if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+                console.log('Request body:', JSON.stringify(req.body));
+            }
+            // Process message using SSEServerTransport
             try {
-                // SDK의 handlePostMessage 메서드 사용
+                // Use SDK's handlePostMessage method
                 await transport.handlePostMessage(req, res, req.body);
-                // handlePostMessage는 자체적으로 응답을 처리하므로 여기서 추가 응답을 보내지 않음
+                // handlePostMessage handles the response itself, so no additional response should be sent here
             }
             catch (err) {
-                console.error('메시지 처리 오류:', err.message);
+                console.error('Message processing error:', err.message);
                 if (!res.headersSent) {
                     res.status(500).json({
-                        error: '메시지 처리 실패',
-                        message: `메시지 처리 중 오류가 발생했습니다: ${err.message}`
+                        error: 'Message processing failed',
+                        message: `An error occurred while processing the message: ${err.message}`
                     });
                 }
             }
         }
         catch (error) {
-            console.error('메시지 처리 오류:', error.message);
+            console.error('Message handling error:', error.message);
             if (!res.headersSent) {
                 res.status(500).json({
-                    error: '내부 서버 오류',
-                    message: `요청 처리 중 오류가 발생했습니다: ${error.message}`
+                    error: 'Internal server error',
+                    message: `An error occurred while processing the request: ${error.message}`
                 });
             }
         }
     });
-    // 서버 시작
+    // Start server
     const server1 = app.listen(port, () => {
-        console.log(`HTTP 서버가 http://localhost:${port}에서 실행 중입니다.`);
+        console.log(`HTTP server running at http://localhost:${port}`);
     });
-    // 서버 종료 시 모든 연결 정리
+    // Clean up all connections on server shutdown
     process.on('SIGINT', () => {
-        console.log('서버 종료 중...');
+        console.log('Shutting down server...');
         server1.close();
         process.exit(0);
     });

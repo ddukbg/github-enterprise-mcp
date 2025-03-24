@@ -1,88 +1,88 @@
 import { GitHubClient } from '../../utils/client.js';
 import { GitHubLicenseInfo, GitHubEnterpriseUser, GitHubEnterpriseStats, GitHubSecurityPolicy, GitHubMaintenance, GitHubBackupStatus } from './types.js';
 /**
- * GitHub Enterprise Server 관리자 기능을 제공하는 클래스
- * 이 API는 GitHub Enterprise Server에서만 사용 가능합니다.
+ * Class providing GitHub Enterprise Server administrator features
+ * This API is only available on GitHub Enterprise Server
  */
 export declare class AdminAPI {
     private client;
     constructor(client: GitHubClient);
     /**
-     * 라이센스 정보 조회
-     * GitHub Enterprise Server 전용 API
+     * Retrieve license information
+     * GitHub Enterprise Server exclusive API
      */
     getLicenseInfo(): Promise<GitHubLicenseInfo>;
     /**
-     * 엔터프라이즈 사용자 목록 조회
-     * GitHub Enterprise Server 전용 API
+     * List enterprise users
+     * GitHub Enterprise Server exclusive API
      */
     listUsers(page?: number, perPage?: number): Promise<GitHubEnterpriseUser[]>;
     /**
-     * 특정 사용자 조회
-     * GitHub Enterprise Server 전용 API
+     * Get specific user
+     * GitHub Enterprise Server exclusive API
      */
     getUser(username: string): Promise<GitHubEnterpriseUser>;
     /**
-     * 새 사용자 생성
-     * GitHub Enterprise Server 전용 API
+     * Create new user
+     * GitHub Enterprise Server exclusive API
      */
     createUser(login: string, email: string, options?: {
         name?: string;
         password?: string;
     }): Promise<GitHubEnterpriseUser>;
     /**
-     * 사용자 일시 정지
-     * GitHub Enterprise Server 전용 API
+     * Suspend user
+     * GitHub Enterprise Server exclusive API
      */
     suspendUser(username: string, reason?: string): Promise<void>;
     /**
-     * 사용자 일시 정지 해제
-     * GitHub Enterprise Server 전용 API
+     * Unsuspend user
+     * GitHub Enterprise Server exclusive API
      */
     unsuspendUser(username: string): Promise<void>;
     /**
-     * 엔터프라이즈 통계 조회
-     * GitHub Enterprise Server 전용 API
+     * Get enterprise statistics
+     * GitHub Enterprise Server exclusive API
      */
     getStats(): Promise<GitHubEnterpriseStats>;
     /**
-     * 보안 정책 목록 조회
-     * GitHub Enterprise Server 전용 API
+     * List security policies
+     * GitHub Enterprise Server exclusive API
      */
     listSecurityPolicies(): Promise<GitHubSecurityPolicy[]>;
     /**
-     * 보안 정책 활성화/비활성화
-     * GitHub Enterprise Server 전용 API
+     * Enable/disable security policy
+     * GitHub Enterprise Server exclusive API
      */
     updateSecurityPolicy(id: number, enabled: boolean): Promise<GitHubSecurityPolicy>;
     /**
-     * 유지보수 모드 상태 조회
-     * GitHub Enterprise Server 전용 API
+     * Get maintenance mode status
+     * GitHub Enterprise Server exclusive API
      */
     getMaintenanceStatus(): Promise<GitHubMaintenance>;
     /**
-     * 유지보수 모드 활성화
-     * GitHub Enterprise Server 전용 API
+     * Enable maintenance mode
+     * GitHub Enterprise Server exclusive API
      */
     enableMaintenance(scheduledTime?: string): Promise<GitHubMaintenance>;
     /**
-     * 유지보수 모드 비활성화
-     * GitHub Enterprise Server 전용 API
+     * Disable maintenance mode
+     * GitHub Enterprise Server exclusive API
      */
     disableMaintenance(): Promise<GitHubMaintenance>;
     /**
-     * 백업 상태 조회
-     * GitHub Enterprise Server 전용 API
+     * Get backup status
+     * GitHub Enterprise Server exclusive API
      */
     getBackupStatus(): Promise<GitHubBackupStatus>;
     /**
-     * 백업 활성화
-     * GitHub Enterprise Server 전용 API
+     * Enable backup
+     * GitHub Enterprise Server exclusive API
      */
     enableBackup(): Promise<GitHubBackupStatus>;
     /**
-     * 백업 비활성화
-     * GitHub Enterprise Server 전용 API
+     * Disable backup
+     * GitHub Enterprise Server exclusive API
      */
     disableBackup(): Promise<GitHubBackupStatus>;
 }

@@ -13,37 +13,37 @@ export declare class GitHubError extends Error {
     constructor(message: string, status: number, data?: any);
 }
 /**
- * GitHub API 요청을 수행하는 클라이언트
+ * Client for making GitHub API requests
  */
 export declare class GitHubClient {
     private config;
     constructor(config: Config);
     /**
-     * GitHub API 요청 수행
+     * Perform GitHub API request
      */
     request<T = any>(path: string, options?: RequestOptions): Promise<T>;
     /**
-     * 요청 URL에 쿼리 파라미터 추가
+     * Add query parameters to request URL
      */
     private addQueryParams;
     /**
-     * GET 요청 헬퍼
+     * GET request helper
      */
     get<T = any>(path: string, options?: Omit<RequestOptions, 'method'>): Promise<T>;
     /**
-     * POST 요청 헬퍼
+     * POST request helper
      */
     post<T = any>(path: string, body?: any, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T>;
     /**
-     * PUT 요청 헬퍼
+     * PUT request helper
      */
     put<T = any>(path: string, body?: any, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T>;
     /**
-     * PATCH 요청 헬퍼
+     * PATCH request helper
      */
     patch<T = any>(path: string, body?: any, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T>;
     /**
-     * DELETE 요청 헬퍼
+     * DELETE request helper
      */
     delete<T = any>(path: string, options?: Omit<RequestOptions, 'method'>): Promise<T>;
 }

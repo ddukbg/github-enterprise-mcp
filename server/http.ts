@@ -41,7 +41,9 @@ export async function startHttpServer(server: McpServer, port: number = 3000): P
                         Math.random().toString(36).substring(2, 15) + 
                         Math.random().toString(36).substring(2, 15);
       
-      console.log(`New SSE connection established: Session ID ${sessionId}`);
+      if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+        console.log(`New SSE connection: ${sessionId}`);
+      }
 
       // Important: Allow SDK's SSEServerTransport to set headers
       // Create SSE transport
@@ -56,12 +58,14 @@ export async function startHttpServer(server: McpServer, port: number = 3000): P
       
       // Handle client disconnection
       req.on('close', () => {
-        console.log(`Session ID ${sessionId} connection closed`);
+        if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+          console.log(`Connection closed: ${sessionId}`);
+        }
         connectionStatus.set(sessionId, false);
         transportMap.delete(sessionId);
       });
     } catch (error: any) {
-      console.error('SSE connection setup error:', error.message);
+      console.error('SSE connection error:', error.message);
       // Prevent errors in case headers have already been sent
       try {
         if (!res.headersSent) {
@@ -96,12 +100,17 @@ export async function startHttpServer(server: McpServer, port: number = 3000): P
       
       // Use only sessionId from URL
       const cleanSessionId = urlSessionId.split('?')[0];
-      console.log(`Processing message: Session ID ${cleanSessionId}, method: ${req.body.method}`);
+      
+      if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+        console.log(`Message: ${cleanSessionId}, method: ${req.body.method}`);
+      }
       
       const transport = transportMap.get(cleanSessionId);
       if (!transport) {
-        console.error(`Transport not found for session ID ${cleanSessionId}`);
-        console.log('Currently active session IDs:', Array.from(transportMap.keys()));
+        console.error(`Transport not found for session ${cleanSessionId}`);
+        if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+          console.log('Active sessions:', Array.from(transportMap.keys()));
+        }
         return res.status(404).json({ 
           error: 'Transport not found',
           message: 'No active connection exists for this session. Please refresh and try again.'
@@ -111,14 +120,16 @@ export async function startHttpServer(server: McpServer, port: number = 3000): P
       // Check connection status
       const isConnected = connectionStatus.get(cleanSessionId);
       if (!isConnected) {
-        console.error(`Connection for session ID ${cleanSessionId} has been closed`);
+        console.error(`Connection for session ${cleanSessionId} has been closed`);
         return res.status(400).json({ 
           error: 'Connection closed',
           message: 'The connection has been closed. Please refresh and try again.'
         });
       }
       
-      console.log('Request content:', JSON.stringify(req.body));
+      if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+        console.log('Request body:', JSON.stringify(req.body));
+      }
       
       // Process message using SSEServerTransport
       try {

@@ -1,22 +1,22 @@
 import { startServer } from './server/index.js';
-// 서버 설정 관련 재내보내기
+// Re-export config utilities
 export * from './utils/config.js';
-// 서버 관련 재내보내기
+// Re-export server components
 export * from './server/index.js';
-// 저장소 API 재내보내기
+// Re-export repository API
 export * from './api/repos/repository.js';
 export * from './api/repos/types.js';
-// 관리자 API 재내보내기
+// Re-export admin API
 export * from './api/admin/admin.js';
 export * from './api/admin/types.js';
-// 기본 CLI 진입점
+// Default CLI entry point
 if (import.meta.url === import.meta.resolve(process.argv[1])) {
-    // CLI 인자 파싱
+    // Parse CLI arguments
     const args = process.argv.slice(2);
     const options = {
         config: {}
     };
-    // 간단한 인자 파싱
+    // Simple argument parsing
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
         if (arg === '--baseUrl' && i + 1 < args.length) {
@@ -37,7 +37,7 @@ if (import.meta.url === import.meta.resolve(process.argv[1])) {
                 options.transport = transportValue;
             }
             else {
-                console.warn(`지원하지 않는 transport 타입입니다: ${transportValue}. 'stdio'로 설정합니다.`);
+                console.warn(`Unsupported transport type: ${transportValue}. Setting to 'stdio'.`);
                 options.transport = 'stdio';
             }
         }
@@ -46,38 +46,38 @@ if (import.meta.url === import.meta.resolve(process.argv[1])) {
         }
         else if (arg === '--help') {
             console.log(`
-MCP GitHub Enterprise 서버
+MCP GitHub Enterprise Server
 
-사용법:
-  npx @modelcontextprotocol/server-github-enterprise [옵션]
+Usage:
+  npx @modelcontextprotocol/server-github-enterprise [options]
 
-옵션:
-  --baseUrl <url>              GitHub Enterprise API 기본 URL
-                               (기본값: https://api.github.com)
-  --github-api-url <url>       GitHub API URL (--baseUrl과 동일)
-  --github-enterprise-url <url> GitHub Enterprise URL (--baseUrl과 동일)
-  --token <token>              GitHub 개인 액세스 토큰
-  --transport <type>           전송 유형 (stdio 또는 http)
-                               (기본값: stdio)
-  --debug                      디버그 모드 활성화
-  --help                       도움말 표시
+Options:
+  --baseUrl <url>              GitHub Enterprise API base URL
+                               (default: https://api.github.com)
+  --github-api-url <url>       GitHub API URL (same as --baseUrl)
+  --github-enterprise-url <url> GitHub Enterprise URL (same as --baseUrl)
+  --token <token>              GitHub personal access token
+  --transport <type>           Transport type (stdio or http)
+                               (default: stdio)
+  --debug                      Enable debug mode
+  --help                       Show this help
 
-환경 변수:
+Environment Variables:
   GITHUB_ENTERPRISE_URL        GitHub Enterprise API URL
   GITHUB_API_URL               GitHub API URL
-  GITHUB_TOKEN                 GitHub 개인 액세스 토큰
-  DEBUG=true                   디버그 모드 활성화
+  GITHUB_TOKEN                 GitHub personal access token
+  DEBUG=true                   Enable debug mode
       `);
             process.exit(0);
         }
     }
-    console.log('MCP GitHub Enterprise 서버를 시작합니다...');
-    if (options.config?.baseUrl) {
-        console.log(`사용할 GitHub API URL: ${options.config.baseUrl}`);
+    console.log('Starting MCP GitHub Enterprise Server...');
+    if (options.config?.baseUrl && (options.config?.debug || args.includes('--debug'))) {
+        console.log(`GitHub API URL: ${options.config.baseUrl}`);
     }
-    // 서버 시작
+    // Start server
     startServer(options).catch(error => {
-        console.error('서버 시작 실패:', error);
+        console.error('Failed to start server:', error);
         process.exit(1);
     });
 }

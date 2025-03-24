@@ -9,8 +9,8 @@ import {
 } from './types.js';
 
 /**
- * GitHub Enterprise Server 관리자 기능을 제공하는 클래스
- * 이 API는 GitHub Enterprise Server에서만 사용 가능합니다.
+ * Class providing GitHub Enterprise Server administrator features
+ * This API is only available on GitHub Enterprise Server
  */
 export class AdminAPI {
   private client: GitHubClient;
@@ -20,16 +20,16 @@ export class AdminAPI {
   }
 
   /**
-   * 라이센스 정보 조회
-   * GitHub Enterprise Server 전용 API
+   * Retrieve license information
+   * GitHub Enterprise Server exclusive API
    */
   async getLicenseInfo(): Promise<GitHubLicenseInfo> {
     return this.client.get<GitHubLicenseInfo>('enterprise/settings/license');
   }
 
   /**
-   * 엔터프라이즈 사용자 목록 조회
-   * GitHub Enterprise Server 전용 API
+   * List enterprise users
+   * GitHub Enterprise Server exclusive API
    */
   async listUsers(page = 1, perPage = 30): Promise<GitHubEnterpriseUser[]> {
     return this.client.get<GitHubEnterpriseUser[]>('admin/users', {
@@ -41,16 +41,16 @@ export class AdminAPI {
   }
 
   /**
-   * 특정 사용자 조회
-   * GitHub Enterprise Server 전용 API
+   * Get specific user
+   * GitHub Enterprise Server exclusive API
    */
   async getUser(username: string): Promise<GitHubEnterpriseUser> {
     return this.client.get<GitHubEnterpriseUser>(`admin/users/${username}`);
   }
 
   /**
-   * 새 사용자 생성
-   * GitHub Enterprise Server 전용 API
+   * Create new user
+   * GitHub Enterprise Server exclusive API
    */
   async createUser(
     login: string,
@@ -68,8 +68,8 @@ export class AdminAPI {
   }
 
   /**
-   * 사용자 일시 정지
-   * GitHub Enterprise Server 전용 API
+   * Suspend user
+   * GitHub Enterprise Server exclusive API
    */
   async suspendUser(username: string, reason?: string): Promise<void> {
     await this.client.put(`admin/users/${username}/suspended`, {
@@ -78,32 +78,32 @@ export class AdminAPI {
   }
 
   /**
-   * 사용자 일시 정지 해제
-   * GitHub Enterprise Server 전용 API
+   * Unsuspend user
+   * GitHub Enterprise Server exclusive API
    */
   async unsuspendUser(username: string): Promise<void> {
     await this.client.delete(`admin/users/${username}/suspended`);
   }
 
   /**
-   * 엔터프라이즈 통계 조회
-   * GitHub Enterprise Server 전용 API
+   * Get enterprise statistics
+   * GitHub Enterprise Server exclusive API
    */
   async getStats(): Promise<GitHubEnterpriseStats> {
     return this.client.get<GitHubEnterpriseStats>('enterprise/stats/all');
   }
 
   /**
-   * 보안 정책 목록 조회
-   * GitHub Enterprise Server 전용 API
+   * List security policies
+   * GitHub Enterprise Server exclusive API
    */
   async listSecurityPolicies(): Promise<GitHubSecurityPolicy[]> {
     return this.client.get<GitHubSecurityPolicy[]>('enterprise/settings/security');
   }
 
   /**
-   * 보안 정책 활성화/비활성화
-   * GitHub Enterprise Server 전용 API
+   * Enable/disable security policy
+   * GitHub Enterprise Server exclusive API
    */
   async updateSecurityPolicy(id: number, enabled: boolean): Promise<GitHubSecurityPolicy> {
     return this.client.patch<GitHubSecurityPolicy>(`enterprise/settings/security/${id}`, {
@@ -112,16 +112,16 @@ export class AdminAPI {
   }
 
   /**
-   * 유지보수 모드 상태 조회
-   * GitHub Enterprise Server 전용 API
+   * Get maintenance mode status
+   * GitHub Enterprise Server exclusive API
    */
   async getMaintenanceStatus(): Promise<GitHubMaintenance> {
     return this.client.get<GitHubMaintenance>('enterprise/maintenance');
   }
 
   /**
-   * 유지보수 모드 활성화
-   * GitHub Enterprise Server 전용 API
+   * Enable maintenance mode
+   * GitHub Enterprise Server exclusive API
    */
   async enableMaintenance(scheduledTime?: string): Promise<GitHubMaintenance> {
     return this.client.put<GitHubMaintenance>('enterprise/maintenance', {
@@ -131,8 +131,8 @@ export class AdminAPI {
   }
 
   /**
-   * 유지보수 모드 비활성화
-   * GitHub Enterprise Server 전용 API
+   * Disable maintenance mode
+   * GitHub Enterprise Server exclusive API
    */
   async disableMaintenance(): Promise<GitHubMaintenance> {
     return this.client.put<GitHubMaintenance>('enterprise/maintenance', {
@@ -141,16 +141,16 @@ export class AdminAPI {
   }
 
   /**
-   * 백업 상태 조회
-   * GitHub Enterprise Server 전용 API
+   * Get backup status
+   * GitHub Enterprise Server exclusive API
    */
   async getBackupStatus(): Promise<GitHubBackupStatus> {
     return this.client.get<GitHubBackupStatus>('enterprise/backup');
   }
 
   /**
-   * 백업 활성화
-   * GitHub Enterprise Server 전용 API
+   * Enable backup
+   * GitHub Enterprise Server exclusive API
    */
   async enableBackup(): Promise<GitHubBackupStatus> {
     return this.client.put<GitHubBackupStatus>('enterprise/backup', {
@@ -159,8 +159,8 @@ export class AdminAPI {
   }
 
   /**
-   * 백업 비활성화
-   * GitHub Enterprise Server 전용 API
+   * Disable backup
+   * GitHub Enterprise Server exclusive API
    */
   async disableBackup(): Promise<GitHubBackupStatus> {
     return this.client.put<GitHubBackupStatus>('enterprise/backup', {

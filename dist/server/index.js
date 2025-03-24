@@ -5,6 +5,8 @@ import { loadConfig } from '../utils/config.js';
 import { GitHubClient } from '../utils/client.js';
 import { RepositoryAPI } from '../api/repos/repository.js';
 import { AdminAPI } from '../api/admin/admin.js';
+import * as PullsAPI from '../api/pulls/pulls.js';
+import * as IssuesAPI from '../api/issues/issues.js';
 import { startHttpServer } from './http.js';
 /**
  * 저장소 정보를 사용자 친화적 형식으로 변환
@@ -92,11 +94,15 @@ export async function startServer(options = {}) {
     // API 인스턴스 생성
     const repository = new RepositoryAPI(client);
     const admin = new AdminAPI(client);
+    const pulls = PullsAPI;
+    const issues = IssuesAPI;
     // 컨텍스트 생성
     const context = {
         client,
         repository,
-        admin
+        admin,
+        pulls,
+        issues
     };
     // MCP 서버 생성
     const server = new McpServer({
@@ -362,6 +368,364 @@ export async function startServer(options = {}) {
             };
         }
     });
+    // PR 목록 조회 도구
+    server.tool("list-pull-requests", {
+        owner: z.string().describe("Repository owner (user or organization)"),
+        repo: z.string().describe("Repository name"),
+        state: z.enum(['open', 'closed', 'all']).default('open').describe("PR state filter"),
+        sort: z.enum(['created', 'updated', 'popularity', 'long-running']).default('created').describe("Sort criteria"),
+        direction: z.enum(['asc', 'desc']).default('desc').describe("Sort direction"),
+        page: z.number().default(1).describe("Page number"),
+        per_page: z.number().default(30).describe("Items per page")
+    }, async ({ owner, repo, state, sort, direction, page, per_page }) => {
+        try {
+            // Parameter validation
+            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository owner (owner) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository name (repo) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            const pullRequests = await context.pulls.listPullRequests(context.client, {
+                owner,
+                repo,
+                state,
+                sort,
+                direction,
+                page,
+                per_page
+            });
+            // No PRs found
+            if (!pullRequests || pullRequests.length === 0) {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `No pull requests found in repository '${owner}/${repo}' with state '${state}'.`
+                        }
+                    ]
+                };
+            }
+            // Format PR info for better readability
+            const formattedPRs = pullRequests.map(pr => ({
+                number: pr.number,
+                title: pr.title,
+                state: pr.state,
+                user: pr.user.login,
+                created_at: pr.created_at,
+                updated_at: pr.updated_at,
+                head: `${pr.head.repo.full_name}:${pr.head.ref}`,
+                base: `${pr.base.repo.full_name}:${pr.base.ref}`,
+                url: `${pr.number}`
+            }));
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Pull requests in repository '${owner}/${repo}' (${pullRequests.length}):\n\n${JSON.stringify(formattedPRs, null, 2)}`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            console.error('Error fetching pull requests:', error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `An error occurred while fetching pull requests: ${error.message}`
+                    }
+                ],
+                isError: true
+            };
+        }
+    });
+    // PR 상세 조회 도구
+    server.tool("get-pull-request", {
+        owner: z.string().describe("Repository owner (user or organization)"),
+        repo: z.string().describe("Repository name"),
+        pull_number: z.number().describe("Pull request number")
+    }, async ({ owner, repo, pull_number }) => {
+        try {
+            // Parameter validation
+            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository owner (owner) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository name (repo) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!pull_number || typeof pull_number !== 'number') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Pull request number (pull_number) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            const pullRequest = await context.pulls.getPullRequest(context.client, {
+                owner,
+                repo,
+                pull_number
+            });
+            // Format PR info for better readability
+            const formattedPR = {
+                number: pullRequest.number,
+                title: pullRequest.title,
+                body: pullRequest.body,
+                state: pullRequest.state,
+                user: pullRequest.user.login,
+                created_at: pullRequest.created_at,
+                updated_at: pullRequest.updated_at,
+                closed_at: pullRequest.closed_at,
+                merged_at: pullRequest.merged_at,
+                head: {
+                    ref: pullRequest.head.ref,
+                    sha: pullRequest.head.sha,
+                    repo: pullRequest.head.repo.full_name
+                },
+                base: {
+                    ref: pullRequest.base.ref,
+                    sha: pullRequest.base.sha,
+                    repo: pullRequest.base.repo.full_name
+                },
+                merged: pullRequest.merged,
+                mergeable: pullRequest.mergeable,
+                comments: pullRequest.comments,
+                commits: pullRequest.commits,
+                additions: pullRequest.additions,
+                deletions: pullRequest.deletions,
+                changed_files: pullRequest.changed_files,
+                url: `${pullRequest.number}`
+            };
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Pull request #${pull_number} details:\n\n${JSON.stringify(formattedPR, null, 2)}`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            console.error('Error fetching pull request details:', error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `An error occurred while fetching pull request details: ${error.message}`
+                    }
+                ],
+                isError: true
+            };
+        }
+    });
+    // PR 생성 도구
+    server.tool("create-pull-request", {
+        owner: z.string().describe("Repository owner (user or organization)"),
+        repo: z.string().describe("Repository name"),
+        title: z.string().describe("Pull request title"),
+        head: z.string().describe("Head branch (e.g., 'username:feature' or just 'feature' for same repo)"),
+        base: z.string().describe("Base branch (e.g., 'main')"),
+        body: z.string().optional().describe("Pull request description"),
+        draft: z.boolean().default(false).describe("Create as draft PR")
+    }, async ({ owner, repo, title, head, base, body, draft }) => {
+        try {
+            // Parameter validation
+            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository owner (owner) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository name (repo) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!title || typeof title !== 'string' || title.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Pull request title (title) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!head || typeof head !== 'string' || head.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Head branch (head) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!base || typeof base !== 'string' || base.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Base branch (base) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            const pullRequest = await context.pulls.createPullRequest(context.client, {
+                owner,
+                repo,
+                title,
+                head,
+                base,
+                body,
+                draft
+            });
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Successfully created pull request #${pullRequest.number}: "${pullRequest.title}"`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            console.error('Error creating pull request:', error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `An error occurred while creating pull request: ${error.message}`
+                    }
+                ],
+                isError: true
+            };
+        }
+    });
+    // PR 병합 도구
+    server.tool("merge-pull-request", {
+        owner: z.string().describe("Repository owner (user or organization)"),
+        repo: z.string().describe("Repository name"),
+        pull_number: z.number().describe("Pull request number"),
+        commit_title: z.string().optional().describe("Title for the automatic commit message"),
+        commit_message: z.string().optional().describe("Extra detail to append to automatic commit message"),
+        merge_method: z.enum(['merge', 'squash', 'rebase']).default('merge').describe("Merge method to use")
+    }, async ({ owner, repo, pull_number, commit_title, commit_message, merge_method }) => {
+        try {
+            // Parameter validation
+            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository owner (owner) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository name (repo) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!pull_number || typeof pull_number !== 'number') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Pull request number (pull_number) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            const result = await context.pulls.mergePullRequest(context.client, {
+                owner,
+                repo,
+                pull_number,
+                commit_title,
+                commit_message,
+                merge_method
+            });
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Successfully merged pull request #${pull_number}.\nResult: ${result.message}\nCommit SHA: ${result.sha}`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            console.error('Error merging pull request:', error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `An error occurred while merging pull request: ${error.message}`
+                    }
+                ],
+                isError: true
+            };
+        }
+    });
     // 라이센스 정보 조회 도구 (GitHub Enterprise Server 전용 API)
     server.tool("get-license-info", {}, async () => {
         try {
@@ -414,32 +778,282 @@ export async function startServer(options = {}) {
             };
         }
     });
-    // 서버 시작
+    // Issue list tool
+    server.tool("list-issues", {
+        owner: z.string().describe("Repository owner (user or organization)"),
+        repo: z.string().describe("Repository name"),
+        state: z.enum(['open', 'closed', 'all']).default('open').describe("Issue state filter"),
+        sort: z.enum(['created', 'updated', 'comments']).default('created').describe("Sort criteria"),
+        direction: z.enum(['asc', 'desc']).default('desc').describe("Sort direction"),
+        since: z.string().optional().describe("Only issues updated after this time (ISO 8601 format)"),
+        page: z.number().default(1).describe("Page number"),
+        per_page: z.number().default(30).describe("Items per page")
+    }, async ({ owner, repo, state, sort, direction, since, page, per_page }) => {
+        try {
+            // Parameter validation
+            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository owner (owner) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository name (repo) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            const issues = await context.issues.listIssues(context.client, {
+                owner,
+                repo,
+                state,
+                sort,
+                direction,
+                since,
+                page,
+                per_page
+            });
+            // No issues found
+            if (!issues || issues.length === 0) {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `No issues found in repository '${owner}/${repo}' with state '${state}'.`
+                        }
+                    ]
+                };
+            }
+            // Format issue info for better readability
+            const formattedIssues = issues.map((issue) => ({
+                number: issue.number,
+                title: issue.title,
+                state: issue.state,
+                user: issue.user.login,
+                created_at: issue.created_at,
+                updated_at: issue.updated_at,
+                comments: issue.comments,
+                labels: issue.labels.map((label) => label.name),
+                url: issue.html_url
+            }));
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Issues in repository '${owner}/${repo}' with state '${state}' (${issues.length}):\n\n${JSON.stringify(formattedIssues, null, 2)}`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            console.error('Error fetching issues:', error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `An error occurred while fetching issues: ${error.message}`
+                    }
+                ],
+                isError: true
+            };
+        }
+    });
+    // Issue details tool
+    server.tool("get-issue", {
+        owner: z.string().describe("Repository owner (user or organization)"),
+        repo: z.string().describe("Repository name"),
+        issue_number: z.number().describe("Issue number")
+    }, async ({ owner, repo, issue_number }) => {
+        try {
+            // Parameter validation
+            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository owner (owner) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository name (repo) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!issue_number || typeof issue_number !== 'number') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Issue number (issue_number) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            const issue = await context.issues.getIssue(context.client, {
+                owner,
+                repo,
+                issue_number
+            });
+            // Format issue info for better readability
+            const formattedIssue = {
+                number: issue.number,
+                title: issue.title,
+                body: issue.body,
+                state: issue.state,
+                locked: issue.locked,
+                user: issue.user.login,
+                created_at: issue.created_at,
+                updated_at: issue.updated_at,
+                closed_at: issue.closed_at,
+                comments: issue.comments,
+                labels: issue.labels.map((label) => label.name),
+                assignees: issue.assignees?.map((assignee) => assignee.login),
+                url: issue.html_url
+            };
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Issue #${issue_number} details:\n\n${JSON.stringify(formattedIssue, null, 2)}`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            console.error('Error fetching issue details:', error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `An error occurred while fetching issue details: ${error.message}`
+                    }
+                ],
+                isError: true
+            };
+        }
+    });
+    // Create issue tool
+    server.tool("create-issue", {
+        owner: z.string().describe("Repository owner (user or organization)"),
+        repo: z.string().describe("Repository name"),
+        title: z.string().describe("Issue title"),
+        body: z.string().optional().describe("Issue body content"),
+        assignees: z.array(z.string()).optional().describe("Array of user logins to assign"),
+        labels: z.array(z.string()).optional().describe("Array of label names"),
+        milestone: z.number().optional().describe("Milestone ID")
+    }, async ({ owner, repo, title, body, assignees, labels, milestone }) => {
+        try {
+            // Parameter validation
+            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository owner (owner) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Repository name (repo) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            if (!title || typeof title !== 'string' || title.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Error: Issue title (title) is required."
+                        }
+                    ],
+                    isError: true
+                };
+            }
+            const issue = await context.issues.createIssue(context.client, {
+                owner,
+                repo,
+                title,
+                body,
+                assignees,
+                labels,
+                milestone
+            });
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Successfully created issue #${issue.number}: "${issue.title}"`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            console.error('Error creating issue:', error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `An error occurred while creating issue: ${error.message}`
+                    }
+                ],
+                isError: true
+            };
+        }
+    });
+    // Server start
     if (options.transport === 'http') {
-        // HTTP 트랜스포트 사용
+        // Using HTTP transport
         const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
         await startHttpServer(server, port);
-        console.log(`GitHub Enterprise MCP HTTP 서버가 시작되었습니다. (포트: ${port})`);
-        console.log(`사용 중인 GitHub API URL: ${config.baseUrl}`);
+        console.log(`GitHub Enterprise MCP HTTP server started. (Port: ${port})`);
+        console.log(`Using GitHub API URL: ${config.baseUrl}`);
     }
     else {
-        // 기본 stdio 트랜스포트 사용
+        // Using default stdio transport
         const transport = new StdioServerTransport();
-        // Cursor와의 통신을 위해 stdin 입력 처리를 유지
+        // Keep stdin input processing for communication with Cursor
         process.stdin.resume();
-        // 연결 오류 처리
+        // Handle connection errors
         try {
             await server.connect(transport);
-            console.log(`GitHub Enterprise MCP 서버가 시작되었습니다. (${options.transport || 'stdio'})`);
-            console.log(`사용 중인 GitHub API URL: ${config.baseUrl}`);
-            // 연결 종료 시 처리
+            console.log(`GitHub Enterprise MCP server started. (${options.transport || 'stdio'})`);
+            console.log(`Using GitHub API URL: ${config.baseUrl}`);
+            // Handle connection termination
             process.on('SIGINT', () => {
-                console.log('서버 종료 중...');
+                console.log('Shutting down server...');
                 process.exit(0);
             });
         }
         catch (error) {
-            console.error(`MCP 서버 연결 실패: ${error.message}`);
+            console.error(`MCP server connection failed: ${error.message}`);
             process.exit(1);
         }
     }

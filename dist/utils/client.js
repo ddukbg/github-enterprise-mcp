@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { buildApiUrl } from './config.js';
-// HTTP 에러 클래스
+// HTTP error class
 export class GitHubError extends Error {
     status;
     data;
@@ -12,7 +12,7 @@ export class GitHubError extends Error {
     }
 }
 /**
- * GitHub API 요청을 수행하는 클라이언트
+ * Client for making GitHub API requests
  */
 export class GitHubClient {
     config;
@@ -20,38 +20,38 @@ export class GitHubClient {
         this.config = config;
     }
     /**
-     * GitHub API 요청 수행
+     * Perform GitHub API request
      */
     async request(path, options = {}) {
         const url = buildApiUrl(this.config, path);
         const method = options.method || 'GET';
-        // URL 파라미터 처리
+        // Process URL parameters
         const urlWithParams = this.addQueryParams(url, options.params);
-        // 헤더 준비
+        // Prepare headers
         const headers = {
             'Accept': 'application/vnd.github.v3+json',
             'User-Agent': this.config.userAgent,
             ...options.headers || {},
         };
-        // 토큰이 있으면 인증 헤더 추가
+        // Add authorization header if token exists
         if (this.config.token) {
             headers['Authorization'] = `token ${this.config.token}`;
         }
-        // 요청 바디 처리
+        // Process request body
         let data = options.body;
         if (data && ['POST', 'PUT', 'PATCH'].includes(method)) {
             headers['Content-Type'] = 'application/json';
         }
-        // 요청 디버그 로깅
+        // Debug logging for requests
         if (this.config.debug) {
             console.log(`[GitHub API] ${method} ${urlWithParams}`);
-            console.log(`[GitHub API] 베이스 URL: ${this.config.baseUrl}`);
+            console.log(`[GitHub API] Base URL: ${this.config.baseUrl}`);
             if (data)
                 console.log(`[GitHub API] Request body: ${JSON.stringify(data)}`);
         }
-        // 타임아웃 설정
+        // Set timeout
         const timeout = options.timeout || this.config.timeout;
-        // 요청 실행
+        // Execute request
         try {
             const response = await axios({
                 method: method.toLowerCase(),
@@ -64,37 +64,37 @@ export class GitHubClient {
         }
         catch (error) {
             if (axios.isAxiosError(error)) {
-                // 타임아웃 오류 처리
+                // Handle timeout errors
                 if (error.code === 'ECONNABORTED') {
-                    throw new GitHubError(`GitHub API 요청 타임아웃: 요청이 ${timeout}ms 내에 완료되지 않았습니다.`, 408);
+                    throw new GitHubError(`GitHub API request timeout: Request did not complete within ${timeout}ms.`, 408);
                 }
                 const status = error.response?.status || 0;
                 let errorData = error.response?.data;
-                let errorMessage = `GitHub API 오류: ${status} ${error.message}`;
-                // 특정 오류 코드에 대한 사용자 친화적 메시지
+                let errorMessage = `GitHub API error: ${status} ${error.message}`;
+                // User-friendly messages for specific error codes
                 if (status === 401) {
-                    errorMessage = 'GitHub API 인증 오류: 인증 토큰이 유효하지 않거나 만료되었습니다.';
+                    errorMessage = 'GitHub API authentication error: Invalid or expired token.';
                 }
                 else if (status === 403) {
-                    errorMessage = 'GitHub API 접근 거부: 이 작업을 수행할 권한이 없습니다.';
+                    errorMessage = 'GitHub API access denied: You do not have permission to perform this action.';
                 }
                 else if (status === 404) {
-                    errorMessage = `GitHub API 리소스를 찾을 수 없음: ${path}`;
+                    errorMessage = `GitHub API resource not found: ${path}`;
                 }
                 else if (status === 422) {
-                    errorMessage = 'GitHub API 검증 오류: 요청 데이터가 올바르지 않습니다.';
+                    errorMessage = 'GitHub API validation error: The request data is invalid.';
                 }
                 else if (status >= 500) {
-                    errorMessage = 'GitHub API 서버 오류: 잠시 후 다시 시도하세요.';
+                    errorMessage = 'GitHub API server error: Please try again later.';
                 }
                 throw new GitHubError(errorMessage, status, errorData);
             }
-            // 기타 네트워크 오류
-            throw new GitHubError(`GitHub API 네트워크 오류: ${error.message}`, 0);
+            // Other network errors
+            throw new GitHubError(`GitHub API network error: ${error.message}`, 0);
         }
     }
     /**
-     * 요청 URL에 쿼리 파라미터 추가
+     * Add query parameters to request URL
      */
     addQueryParams(url, params) {
         if (!params)
@@ -113,31 +113,31 @@ export class GitHubClient {
             : `${url}?${queryString}`;
     }
     /**
-     * GET 요청 헬퍼
+     * GET request helper
      */
     async get(path, options = {}) {
         return this.request(path, { ...options, method: 'GET' });
     }
     /**
-     * POST 요청 헬퍼
+     * POST request helper
      */
     async post(path, body, options = {}) {
         return this.request(path, { ...options, method: 'POST', body });
     }
     /**
-     * PUT 요청 헬퍼
+     * PUT request helper
      */
     async put(path, body, options = {}) {
         return this.request(path, { ...options, method: 'PUT', body });
     }
     /**
-     * PATCH 요청 헬퍼
+     * PATCH request helper
      */
     async patch(path, body, options = {}) {
         return this.request(path, { ...options, method: 'PATCH', body });
     }
     /**
-     * DELETE 요청 헬퍼
+     * DELETE request helper
      */
     async delete(path, options = {}) {
         return this.request(path, { ...options, method: 'DELETE' });

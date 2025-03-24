@@ -79,8 +79,8 @@ Environment Variables:
   }
 
   console.log('Starting MCP GitHub Enterprise Server...');
-  if (options.config?.baseUrl) {
-    console.log(`GitHub API URL to use: ${options.config.baseUrl}`);
+  if (options.config?.baseUrl && (options.config?.debug || args.includes('--debug'))) {
+    console.log(`GitHub API URL: ${options.config.baseUrl}`);
   }
 
   // Start server
