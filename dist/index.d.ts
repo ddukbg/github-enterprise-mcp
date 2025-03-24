@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 export * from './utils/config.js';
 export * from './server/index.js';
 export * from './api/repos/repository.js';

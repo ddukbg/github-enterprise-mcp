@@ -4,7 +4,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "github-enterprise-mcp": "dist/index.js"
+    "github-enterprise-mcp": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",

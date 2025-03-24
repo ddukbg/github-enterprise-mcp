@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { startServer } from './server/index.js';
 // Re-export config utilities
 export * from './utils/config.js';
@@ -16,7 +17,8 @@ export * from './api/issues/types.js';
 export * from './api/actions/actions.js';
 export * from './api/actions/types.js';
 // Default CLI entry point
-if (import.meta.url === import.meta.resolve(process.argv[1])) {
+// 다양한 실행 방식 지원 (직접 실행, npx 실행 등)
+if (require.main === module || process.argv[1] === import.meta.url || process.env.INIT_CWD) {
     // Parse CLI arguments
     const args = process.argv.slice(2);
     const options = {
@@ -55,16 +57,16 @@ if (import.meta.url === import.meta.resolve(process.argv[1])) {
 MCP GitHub Enterprise Server
 
 Usage:
-  npx @modelcontextprotocol/server-github-enterprise [options]
+  npx @ddukbg/github-enterprise-mcp [options]
 
 Options:
   --baseUrl <url>              GitHub Enterprise API base URL
-                               (default: https://api.github.com)
+                              (default: https://api.github.com)
   --github-api-url <url>       GitHub API URL (same as --baseUrl)
   --github-enterprise-url <url> GitHub Enterprise URL (same as --baseUrl)
   --token <token>              GitHub personal access token
   --transport <type>           Transport type (stdio or http)
-                               (default: stdio)
+                              (default: stdio)
   --debug                      Enable debug mode
   --help                       Show this help
 

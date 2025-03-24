@@ -25,7 +25,8 @@ export * from './api/actions/actions.js';
 export * from './api/actions/types.js';
 
 // Default CLI entry point
-if (import.meta.url === import.meta.resolve(process.argv[1])) {
+// 다양한 실행 방식 지원 (직접 실행, npx 실행 등)
+if (require.main === module || process.argv[1] === import.meta.url || process.env.INIT_CWD) {
   // Parse CLI arguments
   const args = process.argv.slice(2);
   const options: GitHubServerOptions = {
