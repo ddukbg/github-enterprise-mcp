@@ -6,6 +6,7 @@ import { GitHubClient } from '../utils/client.js';
 import { RepositoryAPI } from '../api/repos/repository.js';
 import { AdminAPI } from '../api/admin/admin.js';
 import * as PullsAPI from '../api/pulls/pulls.js';
+import * as IssuesAPI from '../api/issues/issues.js';
 import { startHttpServer } from './http.js';
 
 // 공통 GitHub 클라이언트 인스턴스
@@ -14,6 +15,7 @@ export interface GitHubContext {
   repository: RepositoryAPI;
   admin: AdminAPI;
   pulls: typeof PullsAPI;
+  issues: typeof IssuesAPI;
 }
 
 // GitHub Enterprise를 위한 MCP 서버 옵션 인터페이스
@@ -116,13 +118,15 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
   const repository = new RepositoryAPI(client);
   const admin = new AdminAPI(client);
   const pulls = PullsAPI;
+  const issues = IssuesAPI;
 
   // 컨텍스트 생성
   const context: GitHubContext = {
     client,
     repository,
     admin,
-    pulls
+    pulls,
+    issues
   };
 
   // MCP 서버 생성
@@ -891,6 +895,576 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             {
               type: "text",
               text: `엔터프라이즈 통계 조회 중 오류가 발생했습니다: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // Issue list tool
+  server.tool(
+    "list-issues",
+    {
+      owner: z.string().describe("Repository owner (user or organization)"),
+      repo: z.string().describe("Repository name"),
+      state: z.enum(['open', 'closed', 'all']).default('open').describe("Issue state filter"),
+      sort: z.enum(['created', 'updated', 'comments']).default('created').describe("Sort criteria"),
+      direction: z.enum(['asc', 'desc']).default('desc').describe("Sort direction"),
+      since: z.string().optional().describe("Only issues updated after this time (ISO 8601 format)"),
+      page: z.number().default(1).describe("Page number"),
+      per_page: z.number().default(30).describe("Items per page")
+    },
+    async ({ owner, repo, state, sort, direction, since, page, per_page }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository owner (owner) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository name (repo) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const issues = await context.issues.listIssues(context.client, {
+          owner,
+          repo,
+          state,
+          sort,
+          direction,
+          since,
+          page,
+          per_page
+        });
+
+        // No issues found
+        if (!issues || issues.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `No issues found in repository '${owner}/${repo}' with state '${state}'.`
+              }
+            ]
+          };
+        }
+
+        // Format issue info for better readability
+        const formattedIssues = issues.map(issue => ({
+          number: issue.number,
+          title: issue.title,
+          state: issue.state,
+          user: issue.user.login,
+          created_at: issue.created_at,
+          updated_at: issue.updated_at,
+          comments: issue.comments,
+          labels: issue.labels.map(label => label.name),
+          url: issue.html_url
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Issues in repository '${owner}/${repo}' with state '${state}' (${issues.length}):\n\n${JSON.stringify(formattedIssues, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error fetching issues:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while fetching issues: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // Issue details tool
+  server.tool(
+    "get-issue",
+    {
+      owner: z.string().describe("Repository owner (user or organization)"),
+      repo: z.string().describe("Repository name"),
+      issue_number: z.number().describe("Issue number")
+    },
+    async ({ owner, repo, issue_number }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository owner (owner) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository name (repo) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!issue_number || typeof issue_number !== 'number') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Issue number (issue_number) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const issue = await context.issues.getIssue(context.client, {
+          owner,
+          repo,
+          issue_number
+        });
+
+        // Format issue info for better readability
+        const formattedIssue = {
+          number: issue.number,
+          title: issue.title,
+          body: issue.body,
+          state: issue.state,
+          locked: issue.locked,
+          user: issue.user.login,
+          created_at: issue.created_at,
+          updated_at: issue.updated_at,
+          closed_at: issue.closed_at,
+          comments: issue.comments,
+          labels: issue.labels.map(label => label.name),
+          assignees: issue.assignees?.map(assignee => assignee.login),
+          url: issue.html_url
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Issue #${issue_number} details:\n\n${JSON.stringify(formattedIssue, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error fetching issue details:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while fetching issue details: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // Create issue tool
+  server.tool(
+    "create-issue",
+    {
+      owner: z.string().describe("Repository owner (user or organization)"),
+      repo: z.string().describe("Repository name"),
+      title: z.string().describe("Issue title"),
+      body: z.string().optional().describe("Issue body content"),
+      assignees: z.array(z.string()).optional().describe("Array of user logins to assign"),
+      labels: z.array(z.string()).optional().describe("Array of label names"),
+      milestone: z.number().optional().describe("Milestone ID")
+    },
+    async ({ owner, repo, title, body, assignees, labels, milestone }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository owner (owner) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository name (repo) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!title || typeof title !== 'string' || title.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Issue title (title) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const issue = await context.issues.createIssue(context.client, {
+          owner,
+          repo,
+          title,
+          body,
+          assignees,
+          labels,
+          milestone
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully created issue #${issue.number}: "${issue.title}"`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error creating issue:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while creating issue: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // Update issue tool
+  server.tool(
+    "update-issue",
+    {
+      owner: z.string().describe("Repository owner (user or organization)"),
+      repo: z.string().describe("Repository name"),
+      issue_number: z.number().describe("Issue number"),
+      title: z.string().optional().describe("New issue title"),
+      body: z.string().optional().describe("New issue body content"),
+      state: z.enum(['open', 'closed']).optional().describe("Issue state"),
+      assignees: z.array(z.string()).optional().describe("Array of user logins to assign"),
+      labels: z.array(z.string()).optional().describe("Array of label names"),
+      milestone: z.number().optional().describe("Milestone ID")
+    },
+    async ({ owner, repo, issue_number, title, body, state, assignees, labels, milestone }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository owner (owner) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository name (repo) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!issue_number || typeof issue_number !== 'number') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Issue number (issue_number) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        // At least one update field must be provided
+        if (title === undefined && body === undefined && state === undefined && 
+            assignees === undefined && labels === undefined && milestone === undefined) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: At least one field to update must be provided."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const issue = await context.issues.updateIssue(context.client, {
+          owner,
+          repo,
+          issue_number,
+          title,
+          body,
+          state,
+          assignees,
+          labels,
+          milestone
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully updated issue #${issue.number}: "${issue.title}" (state: ${issue.state})`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error updating issue:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while updating issue: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // List issue comments tool
+  server.tool(
+    "list-issue-comments",
+    {
+      owner: z.string().describe("Repository owner (user or organization)"),
+      repo: z.string().describe("Repository name"),
+      issue_number: z.number().describe("Issue number"),
+      page: z.number().default(1).describe("Page number"),
+      per_page: z.number().default(30).describe("Items per page")
+    },
+    async ({ owner, repo, issue_number, page, per_page }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository owner (owner) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository name (repo) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!issue_number || typeof issue_number !== 'number') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Issue number (issue_number) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const comments = await context.issues.listIssueComments(context.client, {
+          owner,
+          repo,
+          issue_number,
+          page,
+          per_page
+        });
+
+        // No comments found
+        if (!comments || comments.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `No comments found for issue #${issue_number} in repository '${owner}/${repo}'.`
+              }
+            ]
+          };
+        }
+
+        // Format comments info for better readability
+        const formattedComments = comments.map(comment => ({
+          id: comment.id,
+          user: comment.user.login,
+          body: comment.body,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          url: comment.html_url
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Comments for issue #${issue_number} (${comments.length}):\n\n${JSON.stringify(formattedComments, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error fetching issue comments:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while fetching issue comments: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // Create issue comment tool
+  server.tool(
+    "create-issue-comment",
+    {
+      owner: z.string().describe("Repository owner (user or organization)"),
+      repo: z.string().describe("Repository name"),
+      issue_number: z.number().describe("Issue number"),
+      body: z.string().describe("Comment text")
+    },
+    async ({ owner, repo, issue_number, body }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository owner (owner) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Repository name (repo) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!issue_number || typeof issue_number !== 'number') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Issue number (issue_number) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!body || typeof body !== 'string' || body.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Comment text (body) is required."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const comment = await context.issues.createIssueComment(context.client, {
+          owner,
+          repo,
+          issue_number,
+          body
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully added comment to issue #${issue_number}. Comment ID: ${comment.id}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error creating issue comment:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while creating issue comment: ${error.message}`
             }
           ],
           isError: true
