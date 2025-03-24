@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from 'axios';
+import axios, { AxiosResponse, AxiosRequestConfig } from 'axios';
 import { getUserAgent } from 'universal-user-agent';
 import { Config, buildApiUrl } from './config.js';
 
@@ -12,6 +12,7 @@ export interface RequestOptions {
   params?: Record<string, string | number | boolean | null | undefined>;
   body?: any;
   timeout?: number;
+  responseType?: 'json' | 'text' | 'arraybuffer' | 'blob' | 'document' | 'redirect';
 }
 
 // HTTP error class
@@ -75,15 +76,33 @@ export class GitHubClient {
     // Set timeout
     const timeout = options.timeout || this.config.timeout;
 
+    // Config for axios
+    const axiosConfig: AxiosRequestConfig = {
+      method: method.toLowerCase(),
+      url: urlWithParams,
+      headers,
+      data,
+      timeout
+    };
+
+    // Handle redirect response type
+    if (options.responseType === 'redirect') {
+      axiosConfig.maxRedirects = 0;
+      axiosConfig.validateStatus = (status) => status >= 200 && status < 400;
+    } else if (options.responseType) {
+      axiosConfig.responseType = options.responseType;
+    }
+
     // Execute request
     try {
-      const response = await axios({
-        method: method.toLowerCase(),
-        url: urlWithParams,
-        headers,
-        data,
-        timeout
-      });
+      const response = await axios(axiosConfig);
+
+      // For redirect responses, return the Location header
+      if (options.responseType === 'redirect') {
+        if (response.headers.location) {
+          return { url: response.headers.location } as unknown as T;
+        }
+      }
 
       return response.data as T;
     } catch (error: any) {

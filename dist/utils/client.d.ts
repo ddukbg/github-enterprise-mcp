@@ -6,6 +6,7 @@ export interface RequestOptions {
     params?: Record<string, string | number | boolean | null | undefined>;
     body?: any;
     timeout?: number;
+    responseType?: 'json' | 'text' | 'arraybuffer' | 'blob' | 'document' | 'redirect';
 }
 export declare class GitHubError extends Error {
     status: number;

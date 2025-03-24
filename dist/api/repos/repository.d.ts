@@ -1,53 +1,53 @@
 import { GitHubClient } from '../../utils/client.js';
 import { GitHubRepository, GitHubBranch, GitHubContent, CreateRepoOptions, UpdateRepoOptions, GitHubUser } from './types.js';
 /**
- * GitHub 저장소 관련 기능을 제공하는 클래스
+ * Class providing GitHub repository-related functionality
  */
 export declare class RepositoryAPI {
     private client;
     constructor(client: GitHubClient);
     /**
-     * 사용자 또는 조직의 저장소 목록 조회
+     * List repositories for a user or organization
      */
     listRepositories(owner: string, type?: 'all' | 'owner' | 'member', sort?: 'created' | 'updated' | 'pushed' | 'full_name', page?: number, perPage?: number): Promise<GitHubRepository[]>;
     /**
-     * 조직의 저장소 목록 조회
+     * List repositories for an organization
      */
     listOrganizationRepositories(org: string, type?: 'all' | 'public' | 'private' | 'forks' | 'sources' | 'member', sort?: 'created' | 'updated' | 'pushed' | 'full_name', page?: number, perPage?: number): Promise<GitHubRepository[]>;
     /**
-     * 저장소 세부 정보 조회
+     * Get repository details
      */
     getRepository(owner: string, repo: string): Promise<GitHubRepository>;
     /**
-     * 새 저장소 생성 (사용자 계정)
+     * Create a new repository (user account)
      */
     createRepository(options: CreateRepoOptions): Promise<GitHubRepository>;
     /**
-     * 새 저장소 생성 (조직)
+     * Create a new repository (organization)
      */
     createOrganizationRepository(org: string, options: CreateRepoOptions): Promise<GitHubRepository>;
     /**
-     * 저장소 업데이트
+     * Update repository
      */
     updateRepository(owner: string, repo: string, options: UpdateRepoOptions): Promise<GitHubRepository>;
     /**
-     * 저장소 삭제
+     * Delete repository
      */
     deleteRepository(owner: string, repo: string): Promise<void>;
     /**
-     * 저장소 브랜치 목록 조회
+     * List repository branches
      */
     listBranches(owner: string, repo: string, protected_only?: boolean, page?: number, perPage?: number): Promise<GitHubBranch[]>;
     /**
-     * 특정 브랜치 조회
+     * Get a specific branch
      */
     getBranch(owner: string, repo: string, branch: string): Promise<GitHubBranch>;
     /**
-     * 저장소 내용 조회 (파일 또는 디렉토리)
+     * Get repository content (file or directory)
      */
     getContent(owner: string, repo: string, path: string, ref?: string): Promise<GitHubContent | GitHubContent[]>;
     /**
-     * 파일 내용 생성 또는 업데이트
+     * Create or update file content
      */
     createOrUpdateFile(owner: string, repo: string, path: string, message: string, content: string, sha?: string, branch?: string): Promise<{
         content: GitHubContent | null;
@@ -57,7 +57,7 @@ export declare class RepositoryAPI {
         };
     }>;
     /**
-     * 파일 삭제
+     * Delete a file
      */
     deleteFile(owner: string, repo: string, path: string, message: string, sha: string, branch?: string): Promise<{
         commit: {
@@ -66,23 +66,23 @@ export declare class RepositoryAPI {
         };
     }>;
     /**
-     * 저장소 토픽 조회
+     * Get repository topics
      */
     getTopics(owner: string, repo: string): Promise<{
         names: string[];
     }>;
     /**
-     * 저장소 토픽 설정
+     * Set repository topics
      */
     replaceTopics(owner: string, repo: string, topics: string[]): Promise<{
         names: string[];
     }>;
     /**
-     * 저장소 언어 분포 조회
+     * Get repository language distribution
      */
     getLanguages(owner: string, repo: string): Promise<Record<string, number>>;
     /**
-     * 저장소 기여자 목록 조회
+     * Get repository contributors
      */
     getContributors(owner: string, repo: string, anon?: boolean, page?: number, perPage?: number): Promise<Array<GitHubUser & {
         contributions: number;

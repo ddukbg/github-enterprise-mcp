@@ -1,5 +1,5 @@
 /**
- * GitHub 저장소 관련 기능을 제공하는 클래스
+ * Class providing GitHub repository-related functionality
  */
 export class RepositoryAPI {
     client;
@@ -7,7 +7,7 @@ export class RepositoryAPI {
         this.client = client;
     }
     /**
-     * 사용자 또는 조직의 저장소 목록 조회
+     * List repositories for a user or organization
      */
     async listRepositories(owner, type = 'all', sort = 'full_name', page = 1, perPage = 30) {
         return this.client.get(`users/${owner}/repos`, {
@@ -20,7 +20,7 @@ export class RepositoryAPI {
         });
     }
     /**
-     * 조직의 저장소 목록 조회
+     * List repositories for an organization
      */
     async listOrganizationRepositories(org, type = 'all', sort = 'full_name', page = 1, perPage = 30) {
         return this.client.get(`orgs/${org}/repos`, {
@@ -33,37 +33,37 @@ export class RepositoryAPI {
         });
     }
     /**
-     * 저장소 세부 정보 조회
+     * Get repository details
      */
     async getRepository(owner, repo) {
         return this.client.get(`repos/${owner}/${repo}`);
     }
     /**
-     * 새 저장소 생성 (사용자 계정)
+     * Create a new repository (user account)
      */
     async createRepository(options) {
         return this.client.post('user/repos', options);
     }
     /**
-     * 새 저장소 생성 (조직)
+     * Create a new repository (organization)
      */
     async createOrganizationRepository(org, options) {
         return this.client.post(`orgs/${org}/repos`, options);
     }
     /**
-     * 저장소 업데이트
+     * Update repository
      */
     async updateRepository(owner, repo, options) {
         return this.client.patch(`repos/${owner}/${repo}`, options);
     }
     /**
-     * 저장소 삭제
+     * Delete repository
      */
     async deleteRepository(owner, repo) {
         await this.client.delete(`repos/${owner}/${repo}`);
     }
     /**
-     * 저장소 브랜치 목록 조회
+     * List repository branches
      */
     async listBranches(owner, repo, protected_only = false, page = 1, perPage = 30) {
         return this.client.get(`repos/${owner}/${repo}/branches`, {
@@ -75,13 +75,13 @@ export class RepositoryAPI {
         });
     }
     /**
-     * 특정 브랜치 조회
+     * Get a specific branch
      */
     async getBranch(owner, repo, branch) {
         return this.client.get(`repos/${owner}/${repo}/branches/${branch}`);
     }
     /**
-     * 저장소 내용 조회 (파일 또는 디렉토리)
+     * Get repository content (file or directory)
      */
     async getContent(owner, repo, path, ref) {
         return this.client.get(`repos/${owner}/${repo}/contents/${path}`, {
@@ -89,7 +89,7 @@ export class RepositoryAPI {
         });
     }
     /**
-     * 파일 내용 생성 또는 업데이트
+     * Create or update file content
      */
     async createOrUpdateFile(owner, repo, path, message, content, sha, branch) {
         return this.client.put(`repos/${owner}/${repo}/contents/${path}`, {
@@ -100,7 +100,7 @@ export class RepositoryAPI {
         });
     }
     /**
-     * 파일 삭제
+     * Delete a file
      */
     async deleteFile(owner, repo, path, message, sha, branch) {
         return this.client.delete(`repos/${owner}/${repo}/contents/${path}`, {
@@ -112,7 +112,7 @@ export class RepositoryAPI {
         });
     }
     /**
-     * 저장소 토픽 조회
+     * Get repository topics
      */
     async getTopics(owner, repo) {
         return this.client.get(`repos/${owner}/${repo}/topics`, {
@@ -122,7 +122,7 @@ export class RepositoryAPI {
         });
     }
     /**
-     * 저장소 토픽 설정
+     * Set repository topics
      */
     async replaceTopics(owner, repo, topics) {
         return this.client.put(`repos/${owner}/${repo}/topics`, {
@@ -134,13 +134,13 @@ export class RepositoryAPI {
         });
     }
     /**
-     * 저장소 언어 분포 조회
+     * Get repository language distribution
      */
     async getLanguages(owner, repo) {
         return this.client.get(`repos/${owner}/${repo}/languages`);
     }
     /**
-     * 저장소 기여자 목록 조회
+     * Get repository contributors
      */
     async getContributors(owner, repo, anon = false, page = 1, perPage = 30) {
         return this.client.get(`repos/${owner}/${repo}/contributors`, {

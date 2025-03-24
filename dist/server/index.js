@@ -5,11 +5,12 @@ import { loadConfig } from '../utils/config.js';
 import { GitHubClient } from '../utils/client.js';
 import { RepositoryAPI } from '../api/repos/repository.js';
 import { AdminAPI } from '../api/admin/admin.js';
+import { ActionsAPI } from '../api/actions/actions.js';
 import * as PullsAPI from '../api/pulls/pulls.js';
 import * as IssuesAPI from '../api/issues/issues.js';
 import { startHttpServer } from './http.js';
 /**
- * 저장소 정보를 사용자 친화적 형식으로 변환
+ * Convert repository information to user-friendly format
  */
 function formatRepository(repo) {
     return {
@@ -17,7 +18,7 @@ function formatRepository(repo) {
         name: repo.name,
         full_name: repo.full_name,
         private: repo.private,
-        description: repo.description || '설명 없음',
+        description: repo.description || 'No description',
         html_url: repo.html_url,
         created_at: repo.created_at,
         updated_at: repo.updated_at,
@@ -39,7 +40,7 @@ function formatRepository(repo) {
     };
 }
 /**
- * 브랜치 정보를 사용자 친화적 형식으로 변환
+ * Convert branch information to user-friendly format
  */
 function formatBranch(branch) {
     return {
@@ -51,10 +52,10 @@ function formatBranch(branch) {
     };
 }
 /**
- * 파일 내용을 사용자 친화적 형식으로 변환
+ * Convert file content to user-friendly format
  */
 function formatContent(content) {
-    // 디렉토리인 경우 (배열)
+    // For directory (array)
     if (Array.isArray(content)) {
         return content.map(item => ({
             name: item.name,
@@ -64,7 +65,7 @@ function formatContent(content) {
             url: item.html_url
         }));
     }
-    // 파일인 경우 (단일 객체)
+    // For file (single object)
     const result = {
         name: content.name,
         path: content.path,
@@ -72,45 +73,82 @@ function formatContent(content) {
         size: content.size,
         url: content.html_url
     };
-    // 파일 내용이 있으면 디코딩
+    // Decode file content if available
     if (content.content && content.encoding === 'base64') {
         try {
             result.content = Buffer.from(content.content, 'base64').toString('utf-8');
         }
         catch (e) {
-            result.content = '파일 내용을 디코딩할 수 없습니다.';
+            result.content = 'Unable to decode file content.';
         }
     }
     return result;
 }
 /**
- * GitHub Enterprise MCP 서버 생성 및 시작
+ * Format workflow information into user-friendly format
+ */
+function formatWorkflow(workflow) {
+    return {
+        id: workflow.id,
+        name: workflow.name,
+        path: workflow.path,
+        state: workflow.state,
+        created_at: workflow.created_at,
+        updated_at: workflow.updated_at,
+        url: workflow.html_url,
+        badge_url: workflow.badge_url
+    };
+}
+/**
+ * Format workflow run information into user-friendly format
+ */
+function formatWorkflowRun(run) {
+    return {
+        id: run.id,
+        name: run.name,
+        workflow_id: run.workflow_id,
+        run_number: run.run_number,
+        event: run.event,
+        status: run.status,
+        conclusion: run.conclusion,
+        created_at: run.created_at,
+        updated_at: run.updated_at,
+        url: run.html_url,
+        head_branch: run.head_branch,
+        head_sha: run.head_sha,
+        run_attempt: run.run_attempt
+    };
+}
+/**
+ * GitHub Enterprise MCP server creation and start
  */
 export async function startServer(options = {}) {
-    // 설정 로드
+    // Load configuration
     const config = loadConfig(options.config);
-    // GitHub 클라이언트 인스턴스 생성
+    // Create GitHub client instance
     const client = new GitHubClient(config);
-    // API 인스턴스 생성
+    // Create API instances
     const repository = new RepositoryAPI(client);
     const admin = new AdminAPI(client);
+    const actions = new ActionsAPI(client);
     const pulls = PullsAPI;
     const issues = IssuesAPI;
-    // 컨텍스트 생성
+    // Create context
     const context = {
         client,
         repository,
         admin,
+        actions,
         pulls,
         issues
     };
-    // MCP 서버 생성
+    // Create MCP server
     const server = new McpServer({
         name: "GitHub Enterprise",
         version: "1.0.0",
         description: "GitHub Enterprise Server API를 통해 저장소, PR, 이슈, 코드 등의 정보를 조회하고 관리합니다."
     });
-    // 저장소 목록 조회 도구
+    // Repository list tool
     server.tool("list-repositories", {
         owner: z.string().describe("사용자 또는 조직 이름"),
         isOrg: z.boolean().default(false).describe("조직인지 여부 (true: 조직, false: 사용자)"),
@@ -120,7 +158,7 @@ export async function startServer(options = {}) {
         perPage: z.number().default(30).describe("페이지당 항목 수")
     }, async ({ owner, isOrg, type, sort, page, perPage }) => {
         try {
-            // owner 매개변수 검증
+            // Parameter validation
             if (!owner || typeof owner !== 'string' || owner.trim() === '') {
                 return {
                     content: [
@@ -139,7 +177,7 @@ export async function startServer(options = {}) {
             else {
                 repositories = await context.repository.listRepositories(owner, type, sort, page, perPage);
             }
-            // 저장소가 없는 경우
+            // No repositories found
             if (!repositories || repositories.length === 0) {
                 return {
                     content: [
@@ -150,7 +188,7 @@ export async function startServer(options = {}) {
                     ]
                 };
             }
-            // 저장소 정보 형식화
+            // Format repository information
             const formattedRepos = repositories.map(formatRepository);
             return {
                 content: [
@@ -174,13 +212,13 @@ export async function startServer(options = {}) {
             };
         }
     });
-    // 저장소 세부 정보 조회 도구
+    // Repository details tool
     server.tool("get-repository", {
         owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
         repo: z.string().describe("저장소 이름")
     }, async ({ owner, repo }) => {
         try {
-            // 매개변수 검증
+            // Parameter validation
             if (!owner || typeof owner !== 'string' || owner.trim() === '') {
                 return {
                     content: [
@@ -204,7 +242,7 @@ export async function startServer(options = {}) {
                 };
             }
             const repository = await context.repository.getRepository(owner, repo);
-            // 형식화된 저장소 정보
+            // Formatted repository information
             const formattedRepo = formatRepository(repository);
             return {
                 content: [
@@ -228,7 +266,7 @@ export async function startServer(options = {}) {
             };
         }
     });
-    // 브랜치 목록 조회 도구
+    // Branch list tool
     server.tool("list-branches", {
         owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
         repo: z.string().describe("저장소 이름"),
@@ -237,7 +275,7 @@ export async function startServer(options = {}) {
         perPage: z.number().default(30).describe("페이지당 항목 수")
     }, async ({ owner, repo, protected_only, page, perPage }) => {
         try {
-            // 매개변수 검증
+            // Parameter validation
             if (!owner || typeof owner !== 'string' || owner.trim() === '') {
                 return {
                     content: [
@@ -261,7 +299,7 @@ export async function startServer(options = {}) {
                 };
             }
             const branches = await context.repository.listBranches(owner, repo, protected_only, page, perPage);
-            // 브랜치가 없는 경우
+            // No branches found
             if (!branches || branches.length === 0) {
                 return {
                     content: [
@@ -272,7 +310,7 @@ export async function startServer(options = {}) {
                     ]
                 };
             }
-            // 브랜치 정보 형식화
+            // Format branch information
             const formattedBranches = branches.map(formatBranch);
             return {
                 content: [
@@ -296,7 +334,7 @@ export async function startServer(options = {}) {
             };
         }
     });
-    // 파일 내용 조회 도구
+    // File content tool
     server.tool("get-content", {
         owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
         repo: z.string().describe("저장소 이름"),
@@ -304,7 +342,7 @@ export async function startServer(options = {}) {
         ref: z.string().optional().describe("브랜치 또는 커밋 해시 (기본값: 기본 브랜치)")
     }, async ({ owner, repo, path, ref }) => {
         try {
-            // 매개변수 검증
+            // Parameter validation
             if (!owner || typeof owner !== 'string' || owner.trim() === '') {
                 return {
                     content: [
@@ -339,9 +377,9 @@ export async function startServer(options = {}) {
                 };
             }
             const content = await context.repository.getContent(owner, repo, path, ref);
-            // 내용 형식화
+            // Format content
             const formattedContent = formatContent(content);
-            // 디렉토리인지 파일인지에 따라 다른 응답 메시지
+            // Different response message based on whether it's a directory or file
             const isDirectory = Array.isArray(content);
             const responseText = isDirectory
                 ? `디렉토리 '${path}'의 내용 (${formattedContent.length}개 항목):`
@@ -368,7 +406,7 @@ export async function startServer(options = {}) {
             };
         }
     });
-    // PR 목록 조회 도구
+    // PR list tool
     server.tool("list-pull-requests", {
         owner: z.string().describe("Repository owner (user or organization)"),
         repo: z.string().describe("Repository name"),
@@ -456,7 +494,7 @@ export async function startServer(options = {}) {
             };
         }
     });
-    // PR 상세 조회 도구
+    // PR details tool
     server.tool("get-pull-request", {
         owner: z.string().describe("Repository owner (user or organization)"),
         repo: z.string().describe("Repository name"),
@@ -554,7 +592,7 @@ export async function startServer(options = {}) {
             };
         }
     });
-    // PR 생성 도구
+    // PR creation tool
     server.tool("create-pull-request", {
         owner: z.string().describe("Repository owner (user or organization)"),
         repo: z.string().describe("Repository name"),
@@ -652,7 +690,7 @@ export async function startServer(options = {}) {
             };
         }
     });
-    // PR 병합 도구
+    // PR merge tool
     server.tool("merge-pull-request", {
         owner: z.string().describe("Repository owner (user or organization)"),
         repo: z.string().describe("Repository name"),
@@ -726,7 +764,7 @@ export async function startServer(options = {}) {
             };
         }
     });
-    // 라이센스 정보 조회 도구 (GitHub Enterprise Server 전용 API)
+    // License info tool (GitHub Enterprise Server exclusive API)
     server.tool("get-license-info", {}, async () => {
         try {
             const licenseInfo = await context.admin.getLicenseInfo();
@@ -752,7 +790,7 @@ export async function startServer(options = {}) {
             };
         }
     });
-    // 엔터프라이즈 통계 조회 도구 (GitHub Enterprise Server 전용 API)
+    // Enterprise stats tool (GitHub Enterprise Server exclusive API)
     server.tool("get-enterprise-stats", {}, async () => {
         try {
             const stats = await context.admin.getStats();
@@ -760,120 +798,93 @@ export async function startServer(options = {}) {
                 content: [
                     {
                         type: "text",
-                        text: `GitHub Enterprise 통계 정보:\n\n${JSON.stringify(stats, null, 2)}`
+                        text: `GitHub Enterprise Statistics:\n\n${JSON.stringify(stats, null, 2)}`
                     }
                 ]
             };
         }
         catch (error) {
-            console.error('엔터프라이즈 통계 조회 오류:', error);
             return {
                 content: [
                     {
                         type: "text",
-                        text: `엔터프라이즈 통계 조회 중 오류가 발생했습니다: ${error.message}`
+                        text: `Error retrieving GitHub Enterprise statistics: ${error.message}`
                     }
-                ],
-                isError: true
+                ]
             };
         }
     });
-    // Issue list tool
-    server.tool("list-issues", {
-        owner: z.string().describe("Repository owner (user or organization)"),
-        repo: z.string().describe("Repository name"),
-        state: z.enum(['open', 'closed', 'all']).default('open').describe("Issue state filter"),
-        sort: z.enum(['created', 'updated', 'comments']).default('created').describe("Sort criteria"),
-        direction: z.enum(['asc', 'desc']).default('desc').describe("Sort direction"),
-        since: z.string().optional().describe("Only issues updated after this time (ISO 8601 format)"),
-        page: z.number().default(1).describe("Page number"),
-        per_page: z.number().default(30).describe("Items per page")
-    }, async ({ owner, repo, state, sort, direction, since, page, per_page }) => {
+    // Repository creation tool
+    server.tool("create-repository", {
+        name: z.string().min(1).describe("Repository name"),
+        description: z.string().optional().describe("Repository description"),
+        private: z.boolean().optional().describe("Whether the repository is private"),
+        auto_init: z.boolean().optional().describe("Initialize with README"),
+        gitignore_template: z.string().optional().describe("Add .gitignore template"),
+        license_template: z.string().optional().describe("Add a license template"),
+        org: z.string().optional().describe("Organization name (if creating in an organization)")
+    }, async ({ name, description, private: isPrivate, auto_init, gitignore_template, license_template, org }) => {
         try {
             // Parameter validation
-            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+            if (!name || typeof name !== 'string' || name.trim() === '') {
                 return {
                     content: [
                         {
                             type: "text",
-                            text: "Error: Repository owner (owner) is required."
-                        }
-                    ],
-                    isError: true
-                };
-            }
-            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
-                return {
-                    content: [
-                        {
-                            type: "text",
-                            text: "Error: Repository name (repo) is required."
-                        }
-                    ],
-                    isError: true
-                };
-            }
-            const issues = await context.issues.listIssues(context.client, {
-                owner,
-                repo,
-                state,
-                sort,
-                direction,
-                since,
-                page,
-                per_page
-            });
-            // No issues found
-            if (!issues || issues.length === 0) {
-                return {
-                    content: [
-                        {
-                            type: "text",
-                            text: `No issues found in repository '${owner}/${repo}' with state '${state}'.`
+                            text: "Repository name is required."
                         }
                     ]
                 };
             }
-            // Format issue info for better readability
-            const formattedIssues = issues.map((issue) => ({
-                number: issue.number,
-                title: issue.title,
-                state: issue.state,
-                user: issue.user.login,
-                created_at: issue.created_at,
-                updated_at: issue.updated_at,
-                comments: issue.comments,
-                labels: issue.labels.map((label) => label.name),
-                url: issue.html_url
-            }));
+            const options = {
+                name,
+                description,
+                private: isPrivate,
+                auto_init,
+                gitignore_template,
+                license_template
+            };
+            let repository;
+            if (org) {
+                repository = await context.repository.createOrganizationRepository(org, options);
+            }
+            else {
+                repository = await context.repository.createRepository(options);
+            }
+            // Format repository information
+            const formattedRepo = formatRepository(repository);
             return {
                 content: [
                     {
                         type: "text",
-                        text: `Issues in repository '${owner}/${repo}' with state '${state}' (${issues.length}):\n\n${JSON.stringify(formattedIssues, null, 2)}`
+                        text: `Successfully created repository: ${formattedRepo.full_name}\n\n${JSON.stringify(formattedRepo, null, 2)}`
                     }
                 ]
             };
         }
         catch (error) {
-            console.error('Error fetching issues:', error);
             return {
                 content: [
                     {
                         type: "text",
-                        text: `An error occurred while fetching issues: ${error.message}`
+                        text: `Error creating repository: ${error.message}`
                     }
-                ],
-                isError: true
+                ]
             };
         }
     });
-    // Issue details tool
-    server.tool("get-issue", {
-        owner: z.string().describe("Repository owner (user or organization)"),
-        repo: z.string().describe("Repository name"),
-        issue_number: z.number().describe("Issue number")
-    }, async ({ owner, repo, issue_number }) => {
+    // Repository update tool
+    server.tool("update-repository", {
+        owner: z.string().min(1).describe("Repository owner"),
+        repo: z.string().min(1).describe("Repository name"),
+        description: z.string().optional().describe("New description"),
+        private: z.boolean().optional().describe("Change privacy setting"),
+        default_branch: z.string().optional().describe("Change default branch"),
+        has_issues: z.boolean().optional().describe("Enable/disable issues"),
+        has_projects: z.boolean().optional().describe("Enable/disable projects"),
+        has_wiki: z.boolean().optional().describe("Enable/disable wiki"),
+        archived: z.boolean().optional().describe("Archive/unarchive repository")
+    }, async ({ owner, repo, ...options }) => {
         try {
             // Parameter validation
             if (!owner || typeof owner !== 'string' || owner.trim() === '') {
@@ -881,10 +892,9 @@ export async function startServer(options = {}) {
                     content: [
                         {
                             type: "text",
-                            text: "Error: Repository owner (owner) is required."
+                            text: "Repository owner is required."
                         }
-                    ],
-                    isError: true
+                    ]
                 };
             }
             if (!repo || typeof repo !== 'string' || repo.trim() === '') {
@@ -892,76 +902,39 @@ export async function startServer(options = {}) {
                     content: [
                         {
                             type: "text",
-                            text: "Error: Repository name (repo) is required."
+                            text: "Repository name is required."
                         }
-                    ],
-                    isError: true
+                    ]
                 };
             }
-            if (!issue_number || typeof issue_number !== 'number') {
-                return {
-                    content: [
-                        {
-                            type: "text",
-                            text: "Error: Issue number (issue_number) is required."
-                        }
-                    ],
-                    isError: true
-                };
-            }
-            const issue = await context.issues.getIssue(context.client, {
-                owner,
-                repo,
-                issue_number
-            });
-            // Format issue info for better readability
-            const formattedIssue = {
-                number: issue.number,
-                title: issue.title,
-                body: issue.body,
-                state: issue.state,
-                locked: issue.locked,
-                user: issue.user.login,
-                created_at: issue.created_at,
-                updated_at: issue.updated_at,
-                closed_at: issue.closed_at,
-                comments: issue.comments,
-                labels: issue.labels.map((label) => label.name),
-                assignees: issue.assignees?.map((assignee) => assignee.login),
-                url: issue.html_url
-            };
+            const repository = await context.repository.updateRepository(owner, repo, options);
+            const formattedRepo = formatRepository(repository);
             return {
                 content: [
                     {
                         type: "text",
-                        text: `Issue #${issue_number} details:\n\n${JSON.stringify(formattedIssue, null, 2)}`
+                        text: `Successfully updated repository: ${formattedRepo.full_name}\n\n${JSON.stringify(formattedRepo, null, 2)}`
                     }
                 ]
             };
         }
         catch (error) {
-            console.error('Error fetching issue details:', error);
             return {
                 content: [
                     {
                         type: "text",
-                        text: `An error occurred while fetching issue details: ${error.message}`
+                        text: `Error updating repository: ${error.message}`
                     }
-                ],
-                isError: true
+                ]
             };
         }
     });
-    // Create issue tool
-    server.tool("create-issue", {
-        owner: z.string().describe("Repository owner (user or organization)"),
-        repo: z.string().describe("Repository name"),
-        title: z.string().describe("Issue title"),
-        body: z.string().optional().describe("Issue body content"),
-        assignees: z.array(z.string()).optional().describe("Array of user logins to assign"),
-        labels: z.array(z.string()).optional().describe("Array of label names"),
-        milestone: z.number().optional().describe("Milestone ID")
-    }, async ({ owner, repo, title, body, assignees, labels, milestone }) => {
+    // Repository deletion tool
+    server.tool("delete-repository", {
+        owner: z.string().min(1).describe("Repository owner"),
+        repo: z.string().min(1).describe("Repository name"),
+        confirm: z.boolean().describe("Confirmation for deletion (must be true)")
+    }, async ({ owner, repo, confirm }) => {
         try {
             // Parameter validation
             if (!owner || typeof owner !== 'string' || owner.trim() === '') {
@@ -969,10 +942,9 @@ export async function startServer(options = {}) {
                     content: [
                         {
                             type: "text",
-                            text: "Error: Repository owner (owner) is required."
+                            text: "Repository owner is required."
                         }
-                    ],
-                    isError: true
+                    ]
                 };
             }
             if (!repo || typeof repo !== 'string' || repo.trim() === '') {
@@ -980,51 +952,243 @@ export async function startServer(options = {}) {
                     content: [
                         {
                             type: "text",
-                            text: "Error: Repository name (repo) is required."
+                            text: "Repository name is required."
                         }
-                    ],
-                    isError: true
+                    ]
                 };
             }
-            if (!title || typeof title !== 'string' || title.trim() === '') {
+            if (!confirm) {
                 return {
                     content: [
                         {
                             type: "text",
-                            text: "Error: Issue title (title) is required."
+                            text: "You must set 'confirm' to true to delete a repository. This action is irreversible."
                         }
-                    ],
-                    isError: true
+                    ]
                 };
             }
-            const issue = await context.issues.createIssue(context.client, {
-                owner,
-                repo,
-                title,
-                body,
-                assignees,
-                labels,
-                milestone
-            });
+            await context.repository.deleteRepository(owner, repo);
             return {
                 content: [
                     {
                         type: "text",
-                        text: `Successfully created issue #${issue.number}: "${issue.title}"`
+                        text: `Successfully deleted repository: ${owner}/${repo}`
                     }
                 ]
             };
         }
         catch (error) {
-            console.error('Error creating issue:', error);
             return {
                 content: [
                     {
                         type: "text",
-                        text: `An error occurred while creating issue: ${error.message}`
+                        text: `Error deleting repository: ${error.message}`
                     }
-                ],
-                isError: true
+                ]
+            };
+        }
+    });
+    // List workflows tool
+    server.tool("list-workflows", {
+        owner: z.string().min(1).describe("Repository owner"),
+        repo: z.string().min(1).describe("Repository name"),
+        page: z.number().int().positive().optional().describe("Page number"),
+        perPage: z.number().int().positive().optional().describe("Items per page")
+    }, async ({ owner, repo, page, perPage }) => {
+        try {
+            // Parameter validation
+            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Repository owner is required."
+                        }
+                    ]
+                };
+            }
+            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Repository name is required."
+                        }
+                    ]
+                };
+            }
+            const response = await context.actions.listWorkflows(owner, repo, page, perPage);
+            if (!response.workflows || response.workflows.length === 0) {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `No workflows found in repository '${owner}/${repo}'.`
+                        }
+                    ]
+                };
+            }
+            const formattedWorkflows = response.workflows.map(formatWorkflow);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Workflows in repository '${owner}/${repo}' (${response.total_count}):\n\n${JSON.stringify(formattedWorkflows, null, 2)}`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Error listing workflows: ${error.message}`
+                    }
+                ]
+            };
+        }
+    });
+    // List workflow runs tool
+    server.tool("list-workflow-runs", {
+        owner: z.string().min(1).describe("Repository owner"),
+        repo: z.string().min(1).describe("Repository name"),
+        workflow_id: z.union([z.string(), z.number()]).optional().describe("Workflow ID or file name"),
+        branch: z.string().optional().describe("Filter by branch name"),
+        status: z.enum(['completed', 'action_required', 'cancelled', 'failure', 'neutral', 'skipped', 'stale', 'success', 'timed_out', 'in_progress', 'queued', 'requested', 'waiting']).optional().describe("Filter by run status"),
+        page: z.number().int().positive().optional().describe("Page number"),
+        perPage: z.number().int().positive().optional().describe("Items per page")
+    }, async ({ owner, repo, workflow_id, branch, status, page, perPage }) => {
+        try {
+            // Parameter validation
+            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Repository owner is required."
+                        }
+                    ]
+                };
+            }
+            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Repository name is required."
+                        }
+                    ]
+                };
+            }
+            const response = await context.actions.listWorkflowRuns(owner, repo, {
+                workflow_id,
+                branch,
+                status,
+                page,
+                per_page: perPage
+            });
+            if (!response.workflow_runs || response.workflow_runs.length === 0) {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: workflow_id
+                                ? `No workflow runs found for workflow '${workflow_id}' in repository '${owner}/${repo}'.`
+                                : `No workflow runs found in repository '${owner}/${repo}'.`
+                        }
+                    ]
+                };
+            }
+            const formattedRuns = response.workflow_runs.map(formatWorkflowRun);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `${workflow_id ? `Workflow '${workflow_id}'` : 'Workflow'} runs in repository '${owner}/${repo}' (${response.total_count}):\n\n${JSON.stringify(formattedRuns, null, 2)}`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Error listing workflow runs: ${error.message}`
+                    }
+                ]
+            };
+        }
+    });
+    // Trigger workflow tool
+    server.tool("trigger-workflow", {
+        owner: z.string().min(1).describe("Repository owner"),
+        repo: z.string().min(1).describe("Repository name"),
+        workflow_id: z.union([z.string(), z.number()]).describe("Workflow ID or file name"),
+        ref: z.string().min(1).describe("Git reference (branch, tag, SHA)"),
+        inputs: z.record(z.string()).optional().describe("Workflow inputs")
+    }, async ({ owner, repo, workflow_id, ref, inputs }) => {
+        try {
+            // Parameter validation
+            if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Repository owner is required."
+                        }
+                    ]
+                };
+            }
+            if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Repository name is required."
+                        }
+                    ]
+                };
+            }
+            if (!workflow_id) {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Workflow ID or filename is required."
+                        }
+                    ]
+                };
+            }
+            if (!ref || typeof ref !== 'string' || ref.trim() === '') {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: "Git reference (branch, tag, or SHA) is required."
+                        }
+                    ]
+                };
+            }
+            await context.actions.dispatchWorkflow(owner, repo, workflow_id, { ref, inputs });
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Successfully triggered workflow '${workflow_id}' in repository '${owner}/${repo}' on ref '${ref}'.`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Error triggering workflow: ${error.message}`
+                    }
+                ]
             };
         }
     });
@@ -1058,7 +1222,7 @@ export async function startServer(options = {}) {
         }
     }
 }
-// CLI 실행일 경우 자동으로 서버 시작
+// CLI execution case, automatically start server
 if (import.meta.url === import.meta.resolve(process.argv[1])) {
     startServer();
 }

@@ -1,4 +1,4 @@
 /**
- * GitHub 저장소 타입 정의
+ * GitHub Repository type definitions
  */
 export {};

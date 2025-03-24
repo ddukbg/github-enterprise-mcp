@@ -51,15 +51,31 @@ export class GitHubClient {
         }
         // Set timeout
         const timeout = options.timeout || this.config.timeout;
+        // Config for axios
+        const axiosConfig = {
+            method: method.toLowerCase(),
+            url: urlWithParams,
+            headers,
+            data,
+            timeout
+        };
+        // Handle redirect response type
+        if (options.responseType === 'redirect') {
+            axiosConfig.maxRedirects = 0;
+            axiosConfig.validateStatus = (status) => status >= 200 && status < 400;
+        }
+        else if (options.responseType) {
+            axiosConfig.responseType = options.responseType;
+        }
         // Execute request
         try {
-            const response = await axios({
-                method: method.toLowerCase(),
-                url: urlWithParams,
-                headers,
-                data,
-                timeout
-            });
+            const response = await axios(axiosConfig);
+            // For redirect responses, return the Location header
+            if (options.responseType === 'redirect') {
+                if (response.headers.location) {
+                    return { url: response.headers.location };
+                }
+            }
             return response.data;
         }
         catch (error) {

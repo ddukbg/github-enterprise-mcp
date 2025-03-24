@@ -9,6 +9,12 @@ export * from './api/repos/types.js';
 // Re-export admin API
 export * from './api/admin/admin.js';
 export * from './api/admin/types.js';
+// Re-export issues API
+export * from './api/issues/issues.js';
+export * from './api/issues/types.js';
+// Re-export actions API
+export * from './api/actions/actions.js';
+export * from './api/actions/types.js';
 // Default CLI entry point
 if (import.meta.url === import.meta.resolve(process.argv[1])) {
     // Parse CLI arguments
