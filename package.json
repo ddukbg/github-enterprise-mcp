@@ -1,8 +1,11 @@
 {
-  "name": "github-enterprise",
+  "name": "@ddukbg/github-enterprise-mcp",
   "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "github-enterprise-mcp": "dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
@@ -16,11 +19,21 @@
     "github",
     "enterprise",
     "llm",
-    "ai"
+    "ai",
+    "claude",
+    "cursor"
   ],
-  "author": "",
+  "author": "ddukbg",
   "license": "ISC",
   "description": "MCP server for GitHub Enterprise API integration",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ddukbg/github-enterprise-mcp.git"
+  },
+  "homepage": "https://github.com/ddukbg/github-enterprise-mcp",
+  "bugs": {
+    "url": "https://github.com/ddukbg/github-enterprise-mcp/issues"
+  },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.7.0",
     "@types/cors": "^2.8.17",
@@ -39,5 +52,8 @@
     "express": "^4.19.2",
     "node-fetch": "^3.3.2",
     "universal-user-agent": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

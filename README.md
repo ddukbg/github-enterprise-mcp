@@ -32,6 +32,16 @@ This project is primarily designed for GitHub Enterprise Server environments, bu
 
 ### Installation and Setup
 
+#### Option 1: Using npx (Recommended)
+
+The easiest way to use GitHub Enterprise MCP is via npx:
+
+```bash
+npx @ddukbg/github-enterprise-mcp --token=your_github_token --github-enterprise-url=https://github.your-company.com/api/v3
+```
+
+#### Option 2: Manual Installation
+
 1. Set up environment variables:
 
 ```bash
@@ -63,6 +73,39 @@ npm start
 # HTTP mode (for debugging)
 node dist/index.js --transport http
 ```
+
+## Integration with AI Tools
+
+### Claude Desktop
+
+Add the following to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "github-enterprise": {
+      "command": "npx",
+      "args": ["-y", "@ddukbg/github-enterprise-mcp", "--token=YOUR_GITHUB_TOKEN", "--github-enterprise-url=YOUR_GITHUB_ENTERPRISE_URL"]
+    }
+  }
+}
+```
+
+Replace `YOUR_GITHUB_TOKEN` and `YOUR_GITHUB_ENTERPRISE_URL` with your actual values.
+
+### Cursor
+
+In Cursor, you can add this MCP server in the settings:
+
+1. Open Cursor and go to **Settings**
+2. Navigate to **AI > MCP Servers**
+3. Click **Add MCP Server**
+4. Enter the following details:
+   - **Name**: GitHub Enterprise
+   - **Command**: `npx`
+   - **Arguments**: `-y @ddukbg/github-enterprise-mcp --token=YOUR_GITHUB_TOKEN --github-enterprise-url=YOUR_GITHUB_ENTERPRISE_URL`
+
+Replace `YOUR_GITHUB_TOKEN` and `YOUR_GITHUB_ENTERPRISE_URL` with your actual values.
 
 ## Additional Options in HTTP Mode
 

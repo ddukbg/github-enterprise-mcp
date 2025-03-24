@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { startServer, GitHubServerOptions } from './server/index.js';
 
 // Re-export config utilities
@@ -29,7 +31,7 @@ if (import.meta.url === import.meta.resolve(process.argv[1])) {
   const options: GitHubServerOptions = {
     config: {}
   };
-
+  
   // Simple argument parsing
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -63,16 +65,16 @@ if (import.meta.url === import.meta.resolve(process.argv[1])) {
 MCP GitHub Enterprise Server
 
 Usage:
-  npx @modelcontextprotocol/server-github-enterprise [options]
+  npx @ddukbg/github-enterprise-mcp [options]
 
 Options:
   --baseUrl <url>              GitHub Enterprise API base URL
-                               (default: https://api.github.com)
+                              (default: https://api.github.com)
   --github-api-url <url>       GitHub API URL (same as --baseUrl)
   --github-enterprise-url <url> GitHub Enterprise URL (same as --baseUrl)
   --token <token>              GitHub personal access token
   --transport <type>           Transport type (stdio or http)
-                               (default: stdio)
+                              (default: stdio)
   --debug                      Enable debug mode
   --help                       Show this help
 
