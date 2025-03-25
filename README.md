@@ -163,7 +163,7 @@ Alternatively, you can configure Cursor to use the command mode, although URL mo
 4. Enter the following details:
    - **Name**: GitHub Enterprise
    - **Command**: `npx`
-   - **Arguments**: `@ddukbg/github-enterprise-mcp --transport=http --debug`
+   - **Arguments**: `@ddukbg/github-enterprise-mcp`
    - **Environment Variables**:
      - `GITHUB_ENTERPRISE_URL`: Your GitHub Enterprise API URL
      - `GITHUB_TOKEN`: Your GitHub personal access token
@@ -176,9 +176,7 @@ Alternatively, you can manually edit your `.cursor/mcp.json` file to include:
     "github-enterprise": {
       "command": "npx",
       "args": [
-        "@ddukbg/github-enterprise-mcp",
-        "--transport=http",
-        "--debug"
+        "@ddukbg/github-enterprise-mcp"
       ],
       "env": {
         "GITHUB_ENTERPRISE_URL": "https://github.your-company.com/api/v3",
