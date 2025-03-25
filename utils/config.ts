@@ -47,12 +47,6 @@ export function loadConfig(overrides?: Partial<Config>): Config {
     debug: process.env.DEBUG === 'true',
   };
 
-  // Debug configuration loading information
-  if (process.env.DEBUG === 'true' || args.includes('--debug')) {
-    console.log(`Detected GitHub API URL: ${environmentConfig.baseUrl || '(none)'}`);
-    console.log(`Token provided: ${environmentConfig.token ? 'yes' : 'no'}`);
-  }
-
   // Filter out undefined values
   const filteredEnvConfig = Object.fromEntries(
     Object.entries(environmentConfig).filter(([_, v]) => v !== undefined)

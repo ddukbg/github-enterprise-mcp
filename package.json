@@ -1,6 +1,6 @@
 {
   "name": "@ddukbg/github-enterprise-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -21,11 +21,17 @@
     "llm",
     "ai",
     "claude",
-    "cursor"
+    "cursor",
+    "model context protocol",
+    "issue tracking",
+    "pull request",
+    "git",
+    "repository",
+    "workflow"
   ],
   "author": "ddukbg",
   "license": "ISC",
-  "description": "MCP server for GitHub Enterprise API integration",
+  "description": "MCP server for GitHub Enterprise API integration with Cursor, enabling AI access to repositories, issues, PRs and workflows",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ddukbg/github-enterprise-mcp.git"
@@ -55,5 +61,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

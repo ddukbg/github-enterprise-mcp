@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { randomUUID } from 'crypto';
 // Session-based transport storage
 const transportMap = new Map();
 // Connection status storage
@@ -14,10 +15,14 @@ const connectionStatus = new Map();
  */
 export async function startHttpServer(server, port = 3000) {
     const app = express();
-    // CORS configuration
-    app.use(cors());
-    // JSON parsing
-    app.use(express.json());
+    // CORS configuration - Allow all origins for development
+    app.use(cors({
+        origin: '*',
+        methods: ['GET', 'POST', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization']
+    }));
+    // JSON parsing with larger payload sizes
+    app.use(express.json({ limit: '10mb' }));
     // Health check endpoint
     app.get('/health', (req, res) => {
         res.json({
@@ -26,104 +31,145 @@ export async function startHttpServer(server, port = 3000) {
             version: '1.0.0'
         });
     });
+    // Server startup message
+    console.log(`GitHub Enterprise MCP HTTP server started. (Port: ${port})`);
     // MCP SSE endpoint
     app.get('/sse', async (req, res) => {
         try {
-            // Generate session ID - use session ID provided by Cursor
-            const sessionId = req.query.sessionId ||
-                Math.random().toString(36).substring(2, 15) +
-                    Math.random().toString(36).substring(2, 15);
+            // Generate session ID
+            const sessionId = randomUUID();
             if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
                 console.log(`New SSE connection: ${sessionId}`);
             }
-            // Important: Allow SDK's SSEServerTransport to set headers
-            // Create SSE transport
-            const transport = new SSEServerTransport(`/messages?sessionId=${sessionId}`, res);
-            // Store connection status
-            connectionStatus.set(sessionId, true);
-            transportMap.set(sessionId, transport);
-            // Connect to server
-            await server.connect(transport);
-            // Handle client disconnection
-            req.on('close', () => {
-                if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
-                    console.log(`Connection closed: ${sessionId}`);
+            // Create endpoint for message handling
+            const messageEndpoint = `/messages?sessionId=${sessionId}`;
+            try {
+                // Initialize SSE transport - 트랜스포트가 헤더를 알아서 설정하도록 함
+                const transport = new SSEServerTransport(messageEndpoint, res);
+                // Store for later reference
+                transportMap.set(sessionId, transport);
+                connectionStatus.set(sessionId, true);
+                // Connect server to transport
+                await server.connect(transport);
+                // Handle client disconnection
+                req.on('close', () => {
+                    if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
+                        console.log(`Connection closed: ${sessionId}`);
+                    }
+                    // Clean up
+                    connectionStatus.set(sessionId, false);
+                    transportMap.delete(sessionId);
+                    // Ensure response is properly ended
+                    if (!res.writableEnded) {
+                        res.end();
+                    }
+                });
+            }
+            catch (err) {
+                console.error('Failed to initialize SSE transport:', err.message);
+                if (!res.headersSent) {
+                    res.status(500).send('Failed to initialize SSE connection');
                 }
-                connectionStatus.set(sessionId, false);
-                transportMap.delete(sessionId);
-            });
+                else {
+                    // 헤더가 이미 전송된 경우 데이터만 전송
+                    res.write(`data: ${JSON.stringify({ error: 'Transport initialization failed' })}\n\n`);
+                    res.end();
+                }
+            }
         }
         catch (error) {
             console.error('SSE connection error:', error.message);
-            // Prevent errors in case headers have already been sent
-            try {
-                if (!res.headersSent) {
-                    res.status(500).send('Internal Server Error');
-                }
+            if (!res.headersSent) {
+                res.status(500).send('Internal Server Error');
             }
-            catch { }
         }
     });
     // Messages endpoint
-    app.post('/messages', express.json(), async (req, res) => {
+    app.post('/messages', async (req, res) => {
         try {
-            // Extract sessionId parameter from URL
-            const urlSessionId = req.query.sessionId;
-            if (!urlSessionId) {
+            // Extract session ID from query string and clean it
+            let sessionId = req.query.sessionId;
+            if (!sessionId) {
                 console.error('No session ID provided');
                 return res.status(400).json({
-                    error: 'Session ID required',
-                    message: 'The request does not include a valid session ID.'
+                    jsonrpc: '2.0',
+                    id: null,
+                    error: {
+                        code: -32602,
+                        message: 'Session ID required'
+                    }
                 });
             }
-            // Validate request content
-            if (!req.body || !req.body.method) {
-                console.error('Invalid request format:', JSON.stringify(req.body));
-                return res.status(400).json({
-                    error: 'Invalid request format',
-                    message: 'The request must include a method field.'
-                });
+            // 중요: sessionId에서 쿼리스트링 부분 제거
+            // URL 형식이 포함된 경우(예: "uuid?sessionId=xxx") 파싱
+            if (sessionId.includes('?')) {
+                sessionId = sessionId.split('?')[0];
             }
-            // Use only sessionId from URL
-            const cleanSessionId = urlSessionId.split('?')[0];
             if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
-                console.log(`Message: ${cleanSessionId}, method: ${req.body.method}`);
+                console.log(`Message received for clean session ${sessionId}:`, JSON.stringify(req.body));
             }
-            const transport = transportMap.get(cleanSessionId);
+            // Validate request body
+            if (!req.body) {
+                console.error('Empty request body');
+                return res.status(400).json({
+                    jsonrpc: '2.0',
+                    id: null,
+                    error: {
+                        code: -32600,
+                        message: 'Invalid request'
+                    }
+                });
+            }
+            // Get transport for this session
+            const transport = transportMap.get(sessionId);
             if (!transport) {
-                console.error(`Transport not found for session ${cleanSessionId}`);
-                if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
-                    console.log('Active sessions:', Array.from(transportMap.keys()));
-                }
+                console.error(`Transport not found for session ${sessionId}`);
                 return res.status(404).json({
-                    error: 'Transport not found',
-                    message: 'No active connection exists for this session. Please refresh and try again.'
+                    jsonrpc: '2.0',
+                    id: req.body.id || null,
+                    error: {
+                        code: -32000,
+                        message: 'Session not found or expired'
+                    }
                 });
             }
-            // Check connection status
-            const isConnected = connectionStatus.get(cleanSessionId);
+            // Verify connection is still active
+            const isConnected = connectionStatus.get(sessionId);
             if (!isConnected) {
-                console.error(`Connection for session ${cleanSessionId} has been closed`);
+                console.error(`Connection for session ${sessionId} has been closed`);
                 return res.status(400).json({
-                    error: 'Connection closed',
-                    message: 'The connection has been closed. Please refresh and try again.'
+                    jsonrpc: '2.0',
+                    id: req.body.id || null,
+                    error: {
+                        code: -32001,
+                        message: 'Connection closed'
+                    }
                 });
             }
+            // Normalize the JSON-RPC request
+            const normalizedRequest = {
+                jsonrpc: '2.0',
+                id: req.body.id !== undefined ? req.body.id : Math.floor(Math.random() * 1000000),
+                method: req.body.method,
+                params: req.body.params || {}
+            };
             if (process.env.DEBUG === 'true' || process.argv.includes('--debug')) {
-                console.log('Request body:', JSON.stringify(req.body));
+                console.log('Normalized request:', JSON.stringify(normalizedRequest));
             }
-            // Process message using SSEServerTransport
+            // Process the message
             try {
-                // Use SDK's handlePostMessage method
-                await transport.handlePostMessage(req, res, req.body);
-                // handlePostMessage handles the response itself, so no additional response should be sent here
+                await transport.handlePostMessage(req, res, normalizedRequest);
             }
             catch (err) {
                 console.error('Message processing error:', err.message);
                 if (!res.headersSent) {
                     res.status(500).json({
-                        error: 'Message processing failed',
-                        message: `An error occurred while processing the message: ${err.message}`
+                        jsonrpc: '2.0',
+                        id: normalizedRequest.id,
+                        error: {
+                            code: -32603,
+                            message: `Internal error: ${err.message}`
+                        }
                     });
                 }
             }
@@ -132,15 +178,28 @@ export async function startHttpServer(server, port = 3000) {
             console.error('Message handling error:', error.message);
             if (!res.headersSent) {
                 res.status(500).json({
-                    error: 'Internal server error',
-                    message: `An error occurred while processing the request: ${error.message}`
+                    jsonrpc: '2.0',
+                    id: null,
+                    error: {
+                        code: -32603,
+                        message: 'Internal JSON-RPC error'
+                    }
                 });
             }
         }
     });
-    // Start server
+    // Start server with fallback ports if the default is already in use
     const server1 = app.listen(port, () => {
         console.log(`HTTP server running at http://localhost:${port}`);
+    }).on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.log(`Port ${port} is already in use, trying ${port + 1}...`);
+            // Start server on next port if current is in use
+            startHttpServer(server, port + 1);
+        }
+        else {
+            console.error('Failed to start HTTP server:', err);
+        }
     });
     // Clean up all connections on server shutdown
     process.on('SIGINT', () => {

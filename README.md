@@ -32,46 +32,73 @@ This project is primarily designed for GitHub Enterprise Server environments, bu
 
 ### Installation and Setup
 
-#### Option 1: Using npx (Recommended)
+#### Option 1: Using URL Mode (Recommended for Local Development)
 
-The easiest way to use GitHub Enterprise MCP is via npx:
+This method is the most stable and recommended for local development or testing:
 
+1. Clone the repository and install required packages:
 ```bash
-npx @ddukbg/github-enterprise-mcp --token=your_github_token --github-enterprise-url=https://github.your-company.com/api/v3
-```
-
-#### Option 2: Manual Installation
-
-1. Set up environment variables:
-
-```bash
-# GitHub Enterprise API URL
-export GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3"
-
-# GitHub Personal Access Token
-export GITHUB_TOKEN="your_personal_access_token"
-```
-
-2. Install packages:
-
-```bash
+git clone https://github.com/ddukbg/github-enterprise-mcp.git
+cd github-enterprise-mcp
 npm install
 ```
 
-3. Build:
-
+2. Build the project:
 ```bash
 npm run build
+chmod +x dist/index.js
 ```
 
-4. Start the server:
+3. Run the server:
+```bash
+export GITHUB_TOKEN="your_github_token"
+export GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3"
+node dist/index.js --transport http --debug
+```
+
+4. Connect to Cursor using URL mode:
+   - Add the following to your Cursor's `.cursor/mcp.json` file:
+   ```json
+   {
+     "mcpServers": {
+       "github-enterprise": {
+         "url": "http://localhost:3000/sse"
+       }
+     }
+   }
+   ```
+
+#### Option 2: Install as a Global Command (npm link)
+
+This method is useful for local development:
 
 ```bash
-# STDIO mode (direct integration with Cursor)
-npm start
+# After cloning the repository
+git clone https://github.com/ddukbg/github-enterprise-mcp.git
+cd github-enterprise-mcp
 
-# HTTP mode (for debugging)
-node dist/index.js --transport http
+# Install required packages
+npm install
+
+# Build
+npm run build
+chmod +x dist/index.js
+
+# Link globally
+npm link
+
+# Run as a global command
+export GITHUB_TOKEN="your_github_token"
+export GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3"
+github-enterprise-mcp --transport=http --debug
+```
+
+#### Option 3: Using npx (When Package is Published)
+
+If the package is published to the public npm registry:
+
+```bash
+npx @ddukbg/github-enterprise-mcp --token=your_github_token --github-enterprise-url=https://github.your-company.com/api/v3
 ```
 
 ## Integration with AI Tools
@@ -136,10 +163,31 @@ Alternatively, you can configure Cursor to use the command mode, although URL mo
 4. Enter the following details:
    - **Name**: GitHub Enterprise
    - **Command**: `npx`
-   - **Arguments**: `-y @ddukbg/github-enterprise-mcp --transport http --debug`
+   - **Arguments**: `@ddukbg/github-enterprise-mcp --transport=http --debug`
    - **Environment Variables**:
      - `GITHUB_ENTERPRISE_URL`: Your GitHub Enterprise API URL
      - `GITHUB_TOKEN`: Your GitHub personal access token
+
+Alternatively, you can manually edit your `.cursor/mcp.json` file to include:
+
+```json
+{
+  "mcpServers": {
+    "github-enterprise": {
+      "command": "npx",
+      "args": [
+        "@ddukbg/github-enterprise-mcp",
+        "--transport=http",
+        "--debug"
+      ],
+      "env": {
+        "GITHUB_ENTERPRISE_URL": "https://github.your-company.com/api/v3",
+        "GITHUB_TOKEN": "your_github_token"
+      }
+    }
+  }
+}
+```
 
 ## Additional Options in HTTP Mode
 
@@ -175,11 +223,82 @@ This MCP server provides the following tools:
 
 > **Note**: For Enterprise-specific tools (`get-license-info` and `get-enterprise-stats`), a **Classic Personal Access Token** with `admin:enterprise` scope is required. Fine-grained tokens do not support these Enterprise-level permissions.
 
+## Using the Tools in Cursor
+
+Once you have set up the MCP server and configured Cursor to connect to it, you can use the GitHub Enterprise tools directly in Cursor's AI chat. Here are some examples:
+
+### Listing Repositories
+
+```
+mcp_github_enterprise_list_repositories(owner="octocat")
+```
+
+### Getting Repository Information
+
+```
+mcp_github_enterprise_get_repository(owner="octocat", repo="hello-world")
+```
+
+### Listing Pull Requests
+
+```
+mcp_github_enterprise_list_pull_requests(owner="octocat", repo="hello-world", state="open")
+```
+
+### Managing Issues
+
+```
+# List issues
+mcp_github_enterprise_list_issues(owner="octocat", repo="hello-world", state="all")
+
+# Get issue details
+mcp_github_enterprise_get_issue(owner="octocat", repo="hello-world", issue_number=1)
+
+# Create a new issue
+mcp_github_enterprise_create_issue(
+  owner="octocat", 
+  repo="hello-world",
+  title="Found a bug",
+  body="Here is a description of the bug",
+  labels=["bug", "important"]
+)
+```
+
+### Working with Repository Content
+
+```
+mcp_github_enterprise_get_content(owner="octocat", repo="hello-world", path="README.md")
+```
+
+### Repository Management
+
+```
+# Create a new repository
+mcp_github_enterprise_create_repository(
+  name="new-project",
+  description="This is a new project",
+  private=true,
+  auto_init=true
+)
+
+# Update repository settings
+mcp_github_enterprise_update_repository(
+  owner="octocat",
+  repo="hello-world",
+  description="Updated description",
+  has_issues=true
+)
+```
+
 ## API Improvements
 
 - Flexible API URL configuration (supports various environment variables and command-line arguments)
 - Enhanced error handling and timeout management
 - User-friendly response formatting and messages
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 

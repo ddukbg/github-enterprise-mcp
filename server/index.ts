@@ -957,10 +957,10 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
       try {
         // Parameter validation
         if (!name || typeof name !== 'string' || name.trim() === '') {
-          return {
-            content: [
-              {
-                type: "text",
+        return {
+          content: [
+            {
+              type: "text",
                 text: "Repository name is required."
               }
             ]
@@ -1006,7 +1006,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
       }
     }
   );
-
+  
   // Repository update tool
   server.tool(
     "update-repository",
@@ -1368,13 +1368,297 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
     }
   );
 
+  // List issues tool
+  server.tool(
+    "list-issues",
+    {
+      owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
+      repo: z.string().describe("저장소 이름"),
+      state: z.enum(['open', 'closed', 'all']).default('open').describe("이슈 상태 필터"),
+      sort: z.enum(['created', 'updated', 'comments']).default('created').describe("정렬 기준"),
+      direction: z.enum(['asc', 'desc']).default('desc').describe("정렬 방향"),
+      page: z.number().default(1).describe("페이지 번호"),
+      per_page: z.number().default(30).describe("페이지당 항목 수")
+    },
+    async ({ owner, repo, state, sort, direction, page, per_page }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "오류: 저장소 소유자(owner)는 필수 항목입니다."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "오류: 저장소 이름(repo)은 필수 항목입니다."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const issues = await context.issues.listIssues(context.client, {
+          owner,
+          repo,
+          state,
+          sort,
+          direction,
+          page,
+          per_page
+        });
+
+        // No issues found
+        if (!issues || issues.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `저장소 '${owner}/${repo}'에서 상태가 '${state}'인 이슈를 찾을 수 없습니다.`
+              }
+            ]
+          };
+        }
+
+        // Format issues info for better readability
+        const formattedIssues = issues.map(issue => ({
+          number: issue.number,
+          title: issue.title,
+          state: issue.state,
+          user: issue.user.login,
+          created_at: issue.created_at,
+          updated_at: issue.updated_at,
+          body: issue.body ? (issue.body.length > 100 ? issue.body.substring(0, 100) + '...' : issue.body) : '',
+          comments: issue.comments,
+          labels: issue.labels.map((label: any) => label.name),
+          assignees: issue.assignees?.map((assignee: any) => assignee.login) || []
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `저장소 '${owner}/${repo}'의 이슈 목록 (${issues.length}개):\n\n${JSON.stringify(formattedIssues, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('이슈 목록 조회 오류:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `이슈 목록을 가져오는 중 오류가 발생했습니다: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+  
+  // Get issue details tool
+  server.tool(
+    "get-issue",
+    {
+      owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
+      repo: z.string().describe("저장소 이름"),
+      issue_number: z.number().describe("이슈 번호")
+    },
+    async ({ owner, repo, issue_number }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "오류: 저장소 소유자(owner)는 필수 항목입니다."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "오류: 저장소 이름(repo)은 필수 항목입니다."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!issue_number || typeof issue_number !== 'number') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "오류: 이슈 번호(issue_number)는 필수 항목입니다."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const issue = await context.issues.getIssue(context.client, {
+          owner,
+          repo,
+          issue_number
+        });
+
+        // Format issue info for better readability
+        const formattedIssue = {
+          number: issue.number,
+          title: issue.title,
+          body: issue.body,
+          state: issue.state,
+          user: issue.user.login,
+          created_at: issue.created_at,
+          updated_at: issue.updated_at,
+          closed_at: issue.closed_at,
+          comments: issue.comments,
+          labels: issue.labels.map((label: any) => label.name),
+          assignees: issue.assignees?.map((assignee: any) => assignee.login) || []
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `이슈 #${issue_number} 상세 정보:\n\n${JSON.stringify(formattedIssue, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('이슈 상세 정보 조회 오류:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `이슈 상세 정보를 가져오는 중 오류가 발생했습니다: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // Create issue tool
+  server.tool(
+    "create-issue",
+    {
+      owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
+      repo: z.string().describe("저장소 이름"),
+      title: z.string().describe("이슈 제목"),
+      body: z.string().optional().describe("이슈 내용"),
+      labels: z.array(z.string()).optional().describe("라벨 목록"),
+      assignees: z.array(z.string()).optional().describe("담당자 목록"),
+      milestone: z.number().optional().describe("마일스톤 ID")
+    },
+    async ({ owner, repo, title, body, labels, assignees, milestone }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "오류: 저장소 소유자(owner)는 필수 항목입니다."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "오류: 저장소 이름(repo)은 필수 항목입니다."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!title || typeof title !== 'string' || title.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "오류: 이슈 제목(title)은 필수 항목입니다."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const issue = await context.issues.createIssue(context.client, {
+          owner,
+          repo,
+          title,
+          body,
+          labels,
+          assignees,
+          milestone
+        });
+
+        // Format created issue info
+        const formattedIssue = {
+          number: issue.number,
+          title: issue.title,
+          body: issue.body,
+          state: issue.state,
+          user: issue.user.login,
+          created_at: issue.created_at,
+          updated_at: issue.updated_at,
+          labels: issue.labels.map((label: any) => label.name),
+          assignees: issue.assignees?.map((assignee: any) => assignee.login) || []
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `이슈가 성공적으로 생성되었습니다 (번호 #${issue.number}):\n\n${JSON.stringify(formattedIssue, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('이슈 생성 오류:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `이슈를 생성하는 중 오류가 발생했습니다: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
   // Server start
   if (options.transport === 'http') {
     // Using HTTP transport
     const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
     await startHttpServer(server, port);
-    console.log(`GitHub Enterprise MCP HTTP server started. (Port: ${port})`);
-    console.log(`Using GitHub API URL: ${config.baseUrl}`);
   } else {
     // Using default stdio transport
     const transport = new StdioServerTransport();
@@ -1386,7 +1670,6 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
     try {
       await server.connect(transport);
       console.log(`GitHub Enterprise MCP server started. (${options.transport || 'stdio'})`);
-      console.log(`Using GitHub API URL: ${config.baseUrl}`);
       
       // Handle connection termination
       process.on('SIGINT', () => {
@@ -1403,4 +1686,4 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
 // CLI execution case, automatically start server
 if (import.meta.url === import.meta.resolve(process.argv[1])) {
   startServer();
-}
+} 
