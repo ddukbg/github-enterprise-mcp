@@ -95,7 +95,40 @@ Replace `YOUR_GITHUB_TOKEN` and `YOUR_GITHUB_ENTERPRISE_URL` with your actual va
 
 ### Cursor
 
-In Cursor, you can add this MCP server in the settings:
+#### Recommended: URL Mode (Most Stable)
+
+For the most reliable operation in Cursor, using URL mode is recommended:
+
+1. Start the server in a separate terminal window:
+   ```bash
+   cd /path/to/github-enterprise-mcp
+   GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3" GITHUB_TOKEN="your_github_token" node dist/index.js --transport http
+   ```
+
+2. Configure Cursor's MCP settings:
+   - Open Cursor and go to **Settings**
+   - Navigate to **AI > MCP Servers**
+   - Edit your `.cursor/mcp.json` file:
+   
+   ```json
+   {
+     "mcpServers": {
+       "github-enterprise": {
+         "url": "http://localhost:3000/sse",
+         "env": {
+           "GITHUB_ENTERPRISE_URL": "https://github.your-company.com/api/v3",
+           "GITHUB_TOKEN": "your_github_token"
+         }
+       }
+     }
+   }
+   ```
+
+3. Restart Cursor to apply the changes
+
+#### Alternative: Command Mode 
+
+Alternatively, you can configure Cursor to use the command mode, although URL mode is more reliable:
 
 1. Open Cursor and go to **Settings**
 2. Navigate to **AI > MCP Servers**
@@ -103,9 +136,10 @@ In Cursor, you can add this MCP server in the settings:
 4. Enter the following details:
    - **Name**: GitHub Enterprise
    - **Command**: `npx`
-   - **Arguments**: `-y @ddukbg/github-enterprise-mcp --token=YOUR_GITHUB_TOKEN --github-enterprise-url=YOUR_GITHUB_ENTERPRISE_URL`
-
-Replace `YOUR_GITHUB_TOKEN` and `YOUR_GITHUB_ENTERPRISE_URL` with your actual values.
+   - **Arguments**: `-y @ddukbg/github-enterprise-mcp --transport http --debug`
+   - **Environment Variables**:
+     - `GITHUB_ENTERPRISE_URL`: Your GitHub Enterprise API URL
+     - `GITHUB_TOKEN`: Your GitHub personal access token
 
 ## Additional Options in HTTP Mode
 

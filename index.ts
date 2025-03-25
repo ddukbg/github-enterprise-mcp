@@ -25,18 +25,51 @@ export * from './api/actions/actions.js';
 export * from './api/actions/types.js';
 
 // Default CLI entry point
-// 다양한 실행 방식 지원 (직접 실행, npx 실행 등)
-if (require.main === module || process.argv[1] === import.meta.url || process.env.INIT_CWD) {
+// ES 모듈 환경에서 실행 여부 확인 - require 사용하지 않음
+const isDirectRun = process.argv[1] === import.meta.url || process.argv[1]?.endsWith('github-enterprise-mcp/dist/index.js');
+
+if (isDirectRun) {
   // Parse CLI arguments
   const args = process.argv.slice(2);
   const options: GitHubServerOptions = {
-    config: {}
+    config: {
+      // 환경 변수에서 설정 불러오기 (명령줄 인수보다 우선순위 낮음)
+      baseUrl: process.env.GITHUB_ENTERPRISE_URL || process.env.GITHUB_API_URL,
+      token: process.env.GITHUB_TOKEN,
+      debug: process.env.DEBUG === 'true' || false
+    }
   };
   
-  // Simple argument parsing
+  // Improved argument parsing - supports both --option value and --option=value formats
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     
+    // Handle --option=value format
+    if (arg.includes('=')) {
+      const [key, value] = arg.split('=');
+      
+      if (key === '--baseUrl' || key === '--github-api-url' || key === '--github-enterprise-url') {
+        options.config!.baseUrl = value;
+      }
+      else if (key === '--token') {
+        options.config!.token = value;
+      }
+      else if (key === '--transport') {
+        if (value === 'http' || value === 'stdio') {
+          options.transport = value;
+        } else {
+          console.warn(`Unsupported transport type: ${value}. Setting to 'stdio'.`);
+          options.transport = 'stdio';
+        }
+      }
+      else if (key === '--debug') {
+        options.config!.debug = value !== 'false';
+      }
+      
+      continue;
+    }
+    
+    // Handle --option value format
     if (arg === '--baseUrl' && i + 1 < args.length) {
       options.config!.baseUrl = args[++i];
     }
@@ -90,9 +123,13 @@ Environment Variables:
   }
 
   console.log('Starting MCP GitHub Enterprise Server...');
-  if (options.config?.baseUrl && (options.config?.debug || args.includes('--debug'))) {
-    console.log(`GitHub API URL: ${options.config.baseUrl}`);
+  if (options.config?.baseUrl) {
+    console.log(`Detected GitHub API URL: ${options.config.baseUrl}`);
+  } else {
+    console.log(`Detected GitHub API URL: (none)`);
   }
+  
+  console.log(`Token provided: ${options.config?.token ? 'yes' : 'no'}`);
 
   // Start server
   startServer(options).catch(error => {
