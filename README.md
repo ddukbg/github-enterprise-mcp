@@ -1,4 +1,5 @@
 # GitHub Enterprise MCP Server
+![image](https://github.com/user-attachments/assets/55403caa-c81d-486a-8ec7-3a2532e7545e)
 
 An MCP (Model Context Protocol) server for integration with GitHub Enterprise API. This server provides an MCP interface to easily access repository information, issues, PRs, and more from GitHub Enterprise in Cursor.
 
