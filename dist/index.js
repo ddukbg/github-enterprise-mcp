@@ -16,6 +16,9 @@ export * from './api/issues/types.js';
 // Re-export actions API
 export * from './api/actions/actions.js';
 export * from './api/actions/types.js';
+// Re-export users API
+export * from './api/users/users.js';
+export * from './api/users/types.js';
 // Default CLI entry point
 // ES 모듈 환경에서 실행 여부 확인 - NPX 환경 포함
 const isDirectRun = process.argv[1] === import.meta.url ||

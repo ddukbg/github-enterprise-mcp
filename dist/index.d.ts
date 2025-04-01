@@ -9,3 +9,5 @@ export * from './api/issues/issues.js';
 export * from './api/issues/types.js';
 export * from './api/actions/actions.js';
 export * from './api/actions/types.js';
+export * from './api/users/users.js';
+export * from './api/users/types.js';
