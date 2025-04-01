@@ -20,6 +20,7 @@ This project is primarily designed for GitHub Enterprise Server environments, bu
 - Manage issues and pull requests
 - Repository management (create, update, delete)
 - GitHub Actions workflows management
+- User management (list, create, update, delete, suspend/unsuspend users)
 - Access enterprise statistics
 - Enhanced error handling and user-friendly response formatting
 
@@ -30,6 +31,57 @@ This project is primarily designed for GitHub Enterprise Server environments, bu
 - Node.js 18 or higher
 - Access to a GitHub Enterprise instance
 - Personal Access Token (PAT)
+
+### Docker Installation and Setup
+
+#### Option 1: Running with Docker
+
+1. Build the Docker image:
+```bash
+docker build -t github-enterprise-mcp .
+```
+
+2. Run the Docker container with environment variables:
+```bash
+docker run -p 3000:3000 \
+  -e GITHUB_TOKEN="your_github_token" \
+  -e GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3" \
+  -e DEBUG=true \
+  github-enterprise-mcp
+```
+
+> **Note**: The Dockerfile is configured to run with `--transport http` by default. If you need to change this, you can override the command:
+```bash
+docker run -p 3000:3000 \
+  -e GITHUB_TOKEN="your_github_token" \
+  -e GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3" \
+  -e DEBUG=true \
+  github-enterprise-mcp node dist/index.js --transport http --debug
+```
+
+#### Option 2: Using Docker Compose
+
+1. Create a `.env` file in the project root with the required environment variables:
+```
+GITHUB_ENTERPRISE_URL=https://github.your-company.com/api/v3
+GITHUB_TOKEN=your_github_token
+DEBUG=true
+```
+
+2. Start the container with Docker Compose:
+```bash
+docker-compose up -d
+```
+
+3. Check the logs:
+```bash
+docker-compose logs -f
+```
+
+4. Stop the container:
+```bash
+docker-compose down
+```
 
 ### Installation and Setup
 
@@ -217,10 +269,10 @@ This MCP server provides the following tools:
 | `list-workflows` | List GitHub Actions workflows | `owner`: Repository owner<br>`repo`: Repository name<br>`page`: Page number<br>`perPage`: Items per page | `actions:read` |
 | `list-workflow-runs` | List workflow runs | `owner`: Repository owner<br>`repo`: Repository name<br>`workflow_id`: Workflow ID/filename<br>`branch`: Filter by branch<br>`status`: Filter by status<br>`page`: Page number<br>`perPage`: Items per page | `actions:read` |
 | `trigger-workflow` | Trigger a workflow | `owner`: Repository owner<br>`repo`: Repository name<br>`workflow_id`: Workflow ID/filename<br>`ref`: Git reference<br>`inputs`: Workflow inputs | `actions:write` |
-| `get-license-info` | Get GitHub Enterprise license information **(Requires Classic PAT)** | - | `admin:enterprise` |
-| `get-enterprise-stats` | Get GitHub Enterprise system statistics **(Requires Classic PAT)** | - | `admin:enterprise` |
+| `get-license-info` | Get GitHub Enterprise license information | - | **Requires site_admin (Administrator) account** |
+| `get-enterprise-stats` | Get GitHub Enterprise system statistics | - | **Requires site_admin (Administrator) account** |
 
-> **Note**: For Enterprise-specific tools (`get-license-info` and `get-enterprise-stats`), a **Classic Personal Access Token** with `admin:enterprise` scope is required. Fine-grained tokens do not support these Enterprise-level permissions.
+> **Note**: For Enterprise-specific tools (`get-license-info` and `get-enterprise-stats`), a user with **site administrator** privileges is required. A Classic Personal Access Token is recommended, as Fine-grained tokens may not support these Enterprise-level permissions.
 
 ## Using the Tools in Cursor
 
@@ -287,6 +339,45 @@ mcp_github_enterprise_update_repository(
   description="Updated description",
   has_issues=true
 )
+```
+
+### User Management (Enterprise Only)
+
+These features are specifically designed for GitHub Enterprise Server environments and require administrative permissions:
+
+```
+# List all users in the GitHub Enterprise instance
+mcp_github_enterprise_list_users(filter="active", per_page=100)
+
+# Get a specific user's details
+mcp_github_enterprise_get_user(username="octocat")
+
+# Create a new user (Enterprise only)
+mcp_github_enterprise_create_user(
+  login="newuser",
+  email="newuser@example.com",
+  name="New User",
+  company="ACME Inc."
+)
+
+# Update a user's information (Enterprise only)
+mcp_github_enterprise_update_user(
+  username="octocat",
+  email="updated-email@example.com",
+  location="San Francisco"
+)
+
+# Suspend a user (Enterprise only)
+mcp_github_enterprise_suspend_user(
+  username="octocat",
+  reason="Violation of terms of service"
+)
+
+# Unsuspend a user (Enterprise only)
+mcp_github_enterprise_unsuspend_user(username="octocat")
+
+# List organizations a user belongs to
+mcp_github_enterprise_list_user_orgs(username="octocat")
 ```
 
 ## API Improvements

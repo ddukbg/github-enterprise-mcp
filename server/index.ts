@@ -9,6 +9,7 @@ import { ActionsAPI } from '../api/actions/actions.js';
 import * as PullsAPI from '../api/pulls/pulls.js';
 import * as IssuesAPI from '../api/issues/issues.js';
 import { startHttpServer } from './http.js';
+import { UserManagement } from '../api/users/users.js';
 
 // Common GitHub client instance
 export interface GitHubContext {
@@ -18,6 +19,8 @@ export interface GitHubContext {
   actions: ActionsAPI;
   pulls: typeof PullsAPI;
   issues: typeof IssuesAPI;
+  users: UserManagement;
+  isGitHubEnterprise: boolean;
 }
 
 // MCP server options interface for GitHub Enterprise
@@ -167,7 +170,9 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
     admin,
     actions,
     pulls,
-    issues
+    issues,
+    users: new UserManagement(),
+    isGitHubEnterprise: !!config.baseUrl && !config.baseUrl.includes('github.com')
   };
 
   // Create MCP server
@@ -1646,6 +1651,370 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             {
               type: "text",
               text: `이슈를 생성하는 중 오류가 발생했습니다: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // User management tools
+  server.tool(
+    "list-users",
+    {
+      per_page: z.number().optional().describe("Number of results per page (max 100)"),
+      page: z.number().optional().describe("Page number for pagination"),
+      filter: z.enum(['all', 'active', 'suspended']).optional().describe("Filter users by status"),
+      search: z.string().optional().describe("Search query to filter users by username or email")
+    },
+    async ({ per_page, page, filter, search }) => {
+      try {
+        const users = await context.users.listUsers(context.client, {
+          per_page,
+          page,
+          filter,
+          search
+        });
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: `GitHub Enterprise users list:\n\n${JSON.stringify(users, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error listing users:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while retrieving users list: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get-user",
+    {
+      username: z.string().describe("Username of the user to retrieve")
+    },
+    async ({ username }) => {
+      try {
+        const user = await context.users.getUser(context.client, { username });
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: `User details for '${username}':\n\n${JSON.stringify(user, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error getting user details:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while retrieving user details: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "create-user",
+    {
+      login: z.string().describe("The username for the user"),
+      email: z.string().describe("The email address for the user"),
+      name: z.string().optional().describe("Full name for the user"),
+      company: z.string().optional().describe("Company for the user"),
+      location: z.string().optional().describe("Location for the user"),
+      bio: z.string().optional().describe("Biography for the user"),
+      blog: z.string().optional().describe("URL of the user's blog or website"),
+      twitter_username: z.string().optional().describe("Twitter username for the user")
+    },
+    async ({ login, email, name, company, location, bio, blog, twitter_username }) => {
+      try {
+        if (!context.isGitHubEnterprise) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "User creation is only available in GitHub Enterprise. This operation cannot be performed on GitHub.com."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const user = await context.users.createUser(context.client, {
+          login,
+          email,
+          name,
+          company,
+          location,
+          bio,
+          blog,
+          twitter_username
+        });
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: `User '${login}' successfully created:\n\n${JSON.stringify(user, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error creating user:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while creating user: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "update-user",
+    {
+      username: z.string().describe("Username of the user to update"),
+      email: z.string().optional().describe("The email address for the user"),
+      name: z.string().optional().describe("Full name for the user"),
+      company: z.string().optional().describe("Company for the user"),
+      location: z.string().optional().describe("Location for the user"),
+      bio: z.string().optional().describe("Biography for the user"),
+      blog: z.string().optional().describe("URL of the user's blog or website"),
+      twitter_username: z.string().optional().describe("Twitter username for the user")
+    },
+    async ({ username, email, name, company, location, bio, blog, twitter_username }) => {
+      try {
+        if (!context.isGitHubEnterprise) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "User updates are only available in GitHub Enterprise. This operation cannot be performed on GitHub.com."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const user = await context.users.updateUser(context.client, {
+          username,
+          email,
+          name,
+          company,
+          location,
+          bio,
+          blog,
+          twitter_username
+        });
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: `User '${username}' successfully updated:\n\n${JSON.stringify(user, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error updating user:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while updating user: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "delete-user",
+    {
+      username: z.string().describe("Username of the user to delete")
+    },
+    async ({ username }) => {
+      try {
+        if (!context.isGitHubEnterprise) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "User deletion is only available in GitHub Enterprise. This operation cannot be performed on GitHub.com."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        await context.users.deleteUser(context.client, { username });
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: `User '${username}' has been successfully deleted.`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error deleting user:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while deleting user: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "suspend-user",
+    {
+      username: z.string().describe("Username of the user to suspend"),
+      reason: z.string().optional().describe("Reason for the suspension")
+    },
+    async ({ username, reason }) => {
+      try {
+        if (!context.isGitHubEnterprise) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "User suspension is only available in GitHub Enterprise. This operation cannot be performed on GitHub.com."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        await context.users.suspendUser(context.client, { username, reason });
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: `User '${username}' has been suspended.${reason ? ` Reason: ${reason}` : ''}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error suspending user:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while suspending user: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "unsuspend-user",
+    {
+      username: z.string().describe("Username of the user to unsuspend")
+    },
+    async ({ username }) => {
+      try {
+        if (!context.isGitHubEnterprise) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "User unsuspension is only available in GitHub Enterprise. This operation cannot be performed on GitHub.com."
+              }
+            ],
+            isError: true
+          };
+        }
+
+        await context.users.unsuspendUser(context.client, { username });
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: `User '${username}' has been unsuspended.`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error unsuspending user:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while unsuspending user: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "list-user-orgs",
+    {
+      username: z.string().describe("Username of the user whose organizations to list"),
+      per_page: z.number().optional().describe("Number of results per page (max 100)"),
+      page: z.number().optional().describe("Page number for pagination")
+    },
+    async ({ username, per_page, page }) => {
+      try {
+        const orgs = await context.users.listUserOrganizations(context.client, {
+          username,
+          per_page,
+          page
+        });
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Organizations for user '${username}':\n\n${JSON.stringify(orgs, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error('Error listing user organizations:', error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while listing user organizations: ${error.message}`
             }
           ],
           isError: true
