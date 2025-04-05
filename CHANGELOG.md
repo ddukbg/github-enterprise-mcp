@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improved development workflow with concurrent TypeScript compilation and server restart
   - Added concurrent build process for more efficient development
-  - Created tsconfig-dev.json for TypeScript configuration
   - Updated npm scripts for better developer experience
 - Enhanced HTTP transport mode configuration for URL-based connections
 - Added documentation for local development workflow
