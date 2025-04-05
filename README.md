@@ -1,4 +1,5 @@
 # GitHub Enterprise MCP Server
+
 ![image](https://github.com/user-attachments/assets/55403caa-c81d-486a-8ec7-3a2532e7545e)
 
 An MCP (Model Context Protocol) server for integration with GitHub Enterprise API. This server provides an MCP interface to easily access repository information, issues, PRs, and more from GitHub Enterprise in Cursor.
@@ -6,6 +7,7 @@ An MCP (Model Context Protocol) server for integration with GitHub Enterprise AP
 ## Compatibility
 
 This project is primarily designed for GitHub Enterprise Server environments, but it also works with:
+
 - GitHub.com
 - GitHub Enterprise Cloud
 
@@ -37,11 +39,13 @@ This project is primarily designed for GitHub Enterprise Server environments, bu
 #### Option 1: Running with Docker
 
 1. Build the Docker image:
+
 ```bash
 docker build -t github-enterprise-mcp .
 ```
 
 2. Run the Docker container with environment variables:
+
 ```bash
 docker run -p 3000:3000 \
   -e GITHUB_TOKEN="your_github_token" \
@@ -51,6 +55,7 @@ docker run -p 3000:3000 \
 ```
 
 > **Note**: The Dockerfile is configured to run with `--transport http` by default. If you need to change this, you can override the command:
+
 ```bash
 docker run -p 3000:3000 \
   -e GITHUB_TOKEN="your_github_token" \
@@ -62,6 +67,7 @@ docker run -p 3000:3000 \
 #### Option 2: Using Docker Compose
 
 1. Create a `.env` file in the project root with the required environment variables:
+
 ```
 GITHUB_ENTERPRISE_URL=https://github.your-company.com/api/v3
 GITHUB_TOKEN=your_github_token
@@ -69,27 +75,60 @@ DEBUG=true
 ```
 
 2. Start the container with Docker Compose:
+
 ```bash
 docker-compose up -d
 ```
 
 3. Check the logs:
+
 ```bash
 docker-compose logs -f
 ```
 
 4. Stop the container:
+
 ```bash
 docker-compose down
 ```
 
 ### Installation and Setup
 
+#### Local Development (Using Concurrent Mode)
+
+This method is recommended for active development with automatic recompilation and server restarts:
+
+1. Clone the repository and install required packages:
+
+```bash
+git clone https://github.com/ddukbg/github-enterprise-mcp.git
+cd github-enterprise-mcp
+npm install
+```
+
+2. Run the development server:
+
+```bash
+export GITHUB_TOKEN="your_github_token"
+export GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3"
+npm run dev
+```
+
+This will:
+- Compile TypeScript code automatically when files change
+- Restart the server when compiled files are updated
+- Run the server in HTTP mode for URL-based connections
+
+3. Connect to Cursor using URL mode as described below
+
+### Installation and Setup for Production
+
 #### Option 1: Using URL Mode (Recommended for Local Development)
 
 This method is the most stable and recommended for local development or testing:
 
 1. Clone the repository and install required packages:
+
 ```bash
 git clone https://github.com/ddukbg/github-enterprise-mcp.git
 cd github-enterprise-mcp
@@ -97,12 +136,14 @@ npm install
 ```
 
 2. Build the project:
+
 ```bash
 npm run build
 chmod +x dist/index.js
 ```
 
 3. Run the server:
+
 ```bash
 export GITHUB_TOKEN="your_github_token"
 export GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3"
@@ -111,6 +152,7 @@ node dist/index.js --transport http --debug
 
 4. Connect to Cursor using URL mode:
    - Add the following to your Cursor's `.cursor/mcp.json` file:
+
    ```json
    {
      "mcpServers": {
@@ -180,6 +222,7 @@ Replace `YOUR_GITHUB_TOKEN` and `YOUR_GITHUB_ENTERPRISE_URL` with your actual va
 For the most reliable operation in Cursor, using URL mode is recommended:
 
 1. Start the server in a separate terminal window:
+
    ```bash
    cd /path/to/github-enterprise-mcp
    GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3" GITHUB_TOKEN="your_github_token" node dist/index.js --transport http
@@ -189,16 +232,12 @@ For the most reliable operation in Cursor, using URL mode is recommended:
    - Open Cursor and go to **Settings**
    - Navigate to **AI > MCP Servers**
    - Edit your `.cursor/mcp.json` file:
-   
+
    ```json
    {
      "mcpServers": {
        "github-enterprise": {
-         "url": "http://localhost:3000/sse",
-         "env": {
-           "GITHUB_ENTERPRISE_URL": "https://github.your-company.com/api/v3",
-           "GITHUB_TOKEN": "your_github_token"
-         }
+         "url": "http://localhost:3000/sse"
        }
      }
    }
@@ -206,7 +245,7 @@ For the most reliable operation in Cursor, using URL mode is recommended:
 
 3. Restart Cursor to apply the changes
 
-#### Alternative: Command Mode 
+#### Alternative: Command Mode
 
 Alternatively, you can configure Cursor to use the command mode, although URL mode is more reliable:
 
@@ -392,4 +431,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-ISC 
+ISC
