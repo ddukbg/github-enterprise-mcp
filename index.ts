@@ -153,7 +153,6 @@ if (isDirectRun) {
       // Get i18n instance if available, or fall back to English
       let helpText;
       try {
-        const i18n = getI18n();
         helpText = `
 MCP GitHub Enterprise Server
 
