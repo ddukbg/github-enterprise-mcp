@@ -1,0 +1,24 @@
+{
+  "param_owner": "사용자 또는 조직 이름",
+  "param_is_org": "조직인지 여부 (true: 조직, false: 사용자)",
+  "param_repo_type": "Repository 유형 필터",
+  "param_sort": "정렬 기준",
+  "param_repo": "Repository 이름",
+  "param_protected_only": "보호된 브랜치만 표시할지 여부",
+  "param_path": "파일 또는 디렉토리 경로",
+  "param_ref": "브랜치 또는 커밋 해시 (기본값: 기본 브랜치)",
+  
+  "repo_not_found": "Repository '{{owner}}/{{repo}}'를 찾을 수 없습니다.",
+  "repo_list_title": "{{type}} '{{name}}'의 Repository 목록 ({{count}}개):",
+  "repo_detail_title": "Repository '{{owner}}/{{repo}}' information:",
+  "branch_list_title": "Repository '{{owner}}/{{repo}}'의 브랜치 목록 ({{count}}개){{filter}}:",
+  "branch_not_found": "Repository '{{owner}}/{{repo}}'에 브랜치가 없습니다.",
+  "file_content_title": "{{type}} '{{path}}'의 내용 ({{count}}개 항목):",
+  "file_decode_error": "파일 내용을 디코딩할 수 없습니다.",
+  
+  "org_type": "조직",
+  "user_type": "사용자",
+  "protected_branches_only": " (보호된 브랜치만)",
+  "directory_type": "디렉토리",
+  "file_type": "파일"
+}

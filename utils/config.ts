@@ -11,6 +11,17 @@ const ConfigSchema = z.object({
   userAgent: z.string().default('mcp-github-enterprise'),
   timeout: z.number().int().positive().default(30000),
   debug: z.boolean().default(false),
+  language: z.string()
+    .transform(val => {
+      // Handle system locale format (e.g., 'en_US.UTF-8')
+      if (val && typeof val === 'string') {
+        if (val.startsWith('ko')) return 'ko';
+        return 'en'; // Default to English for all other languages
+      }
+      return val;
+    })
+    .pipe(z.enum(['en', 'ko']))
+    .default('en'),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -38,6 +49,15 @@ export function loadConfig(overrides?: Partial<Config>): Config {
     }
   }
   
+  // Check for language configuration
+  let language: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--language' && i + 1 < args.length) {
+      language = args[i + 1];
+      break;
+    }
+  }
+
   // Load configuration from environment variables
   const environmentConfig = {
     baseUrl: argBaseUrl || baseUrl, // Command line arguments take precedence
@@ -45,6 +65,7 @@ export function loadConfig(overrides?: Partial<Config>): Config {
     userAgent: process.env.GITHUB_USER_AGENT,
     timeout: process.env.GITHUB_TIMEOUT ? parseInt(process.env.GITHUB_TIMEOUT, 10) : undefined,
     debug: process.env.DEBUG === 'true',
+    language: language || process.env.LANGUAGE || process.env.LANG,
   };
 
   // Filter out undefined values

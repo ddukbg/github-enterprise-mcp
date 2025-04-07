@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 
 import { startServer, GitHubServerOptions } from './server/index.js';
+import { getI18n } from './i18n/index.js';
+import { initializeI18n } from './i18n/index.js';
+import { loadConfig } from './utils/config.js';
 
 // Re-export config utilities
 export * from './utils/config.js';
+
+// Export i18n module
+export * from './i18n/index.js';
 
 // Re-export server components
 export * from './server/index.js';
@@ -53,12 +59,25 @@ if (isDirectRun) {
   // 디버깅용 로그
   console.log('Command line arguments:', args);
   
+  // Parse language argument
+  let language: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--language' && i + 1 < args.length) {
+      language = args[i + 1];
+      break;
+    } else if (args[i].startsWith('--language=')) {
+      language = args[i].split('=')[1];
+      break;
+    }
+  }
+  
   const options: GitHubServerOptions = {
     config: {
       // 환경 변수에서 설정 불러오기
       baseUrl: process.env.GITHUB_ENTERPRISE_URL || process.env.GITHUB_API_URL,
       token: process.env.GITHUB_TOKEN,
-      debug: process.env.DEBUG === 'true' || false
+      debug: process.env.DEBUG === 'true' || false,
+      language: (language || process.env.LANGUAGE || 'en') as 'en' | 'ko'
     }
   };
   
@@ -131,7 +150,11 @@ if (isDirectRun) {
       options.config!.debug = true;
     }
     else if (arg === '--help') {
-      console.log(`
+      // Get i18n instance if available, or fall back to English
+      let helpText;
+      try {
+        const i18n = getI18n();
+        helpText = `
 MCP GitHub Enterprise Server
 
 Usage:
@@ -139,13 +162,14 @@ Usage:
 
 Options:
   --baseUrl <url>              GitHub Enterprise API base URL
-                              (default: https://api.github.com)
+                               (default: https://api.github.com)
   --github-api-url <url>       GitHub API URL (same as --baseUrl)
   --github-enterprise-url <url> GitHub Enterprise URL (same as --baseUrl)
   --token <token>              GitHub personal access token
   --transport <type>           Transport type (stdio or http)
-                              (default: stdio)
+                               (default: stdio)
   --debug                      Enable debug mode
+  --language <lang>            Language (en or ko, default: en)
   --help                       Show this help
 
 Environment Variables:
@@ -153,7 +177,38 @@ Environment Variables:
   GITHUB_API_URL               GitHub API URL
   GITHUB_TOKEN                 GitHub personal access token
   DEBUG=true                   Enable debug mode
-      `);
+  LANGUAGE                     Language (en or ko, default: en)
+        `;
+      } catch (e) {
+        // Fallback if i18n is not initialized
+        helpText = `
+MCP GitHub Enterprise Server
+
+Usage:
+  npx @ddukbg/github-enterprise-mcp [options]
+
+Options:
+  --baseUrl <url>              GitHub Enterprise API base URL
+                               (default: https://api.github.com)
+  --github-api-url <url>       GitHub API URL (same as --baseUrl)
+  --github-enterprise-url <url> GitHub Enterprise URL (same as --baseUrl)
+  --token <token>              GitHub personal access token
+  --transport <type>           Transport type (stdio or http)
+                               (default: stdio)
+  --debug                      Enable debug mode
+  --language <lang>            Language (en or ko, default: en)
+  --help                       Show this help
+
+Environment Variables:
+  GITHUB_ENTERPRISE_URL        GitHub Enterprise API URL
+  GITHUB_API_URL               GitHub API URL
+  GITHUB_TOKEN                 GitHub personal access token
+  DEBUG=true                   Enable debug mode
+  LANGUAGE                     Language (en or ko, default: en)
+        `;
+      }
+      
+      console.log(helpText);
       process.exit(0);
     }
   }
@@ -164,6 +219,7 @@ Environment Variables:
   console.log('token:', options.config?.token ? '(set)' : '(none)');
   console.log('transport:', options.transport || 'stdio');
   console.log('debug:', options.config?.debug ? 'true' : 'false');
+  console.log('language:', options.config?.language || 'en');
 
   console.log('Starting MCP GitHub Enterprise Server...');
   if (options.config?.baseUrl) {
@@ -174,6 +230,10 @@ Environment Variables:
   
   console.log(`Token provided: ${options.config?.token ? 'yes' : 'no'}`);
 
+  // Initialize i18n with loaded config
+  const config = loadConfig(options.config);
+  initializeI18n(config);
+  
   // Start server
   startServer(options).catch(error => {
     console.error('Failed to start server:', error);

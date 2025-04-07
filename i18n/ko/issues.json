@@ -1,0 +1,21 @@
+{
+  "param_owner": "Repository 소유자 (사용자 또는 조직)",
+  "param_repo": "Repository 이름",
+  "param_state": "이슈 상태 필터",
+  "param_sort": "정렬 기준",
+  "param_direction": "정렬 방향",
+  "param_issue_number": "이슈 번호",
+  "param_title": "이슈 제목",
+  "param_body": "이슈 내용",
+  "param_labels": "라벨 목록",
+  "param_assignees": "담당자 목록",
+  "param_milestone": "마일스톤 ID",
+  
+  "issue_list_title": "Repository '{{owner}}/{{repo}}'의 이슈 목록 ({{count}}개):",
+  "issue_not_found": "Repository '{{owner}}/{{repo}}'에서 '{{state}}' 상태의 이슈를 찾을 수 없습니다.",
+  "issue_detail_title": "이슈 #{{number}} 세부 정보:",
+  "issue_create_success": "이슈 #{{number}}을(를) 성공적으로 생성했습니다: \"{{title}}\"",
+  "issue_update_success": "이슈 #{{number}}을(를) 성공적으로 업데이트했습니다",
+  "issue_close_success": "이슈 #{{number}}을(를) 성공적으로 닫았습니다",
+  "issue_reopen_success": "이슈 #{{number}}을(를) 성공적으로 다시 열었습니다"
+}

@@ -1,0 +1,24 @@
+{
+  "param_owner": "User or organization name",
+  "param_is_org": "Whether it's an organization (true: organization, false: user)",
+  "param_repo_type": "Repository type filter",
+  "param_sort": "Sort criteria",
+  "param_repo": "Repository name",
+  "param_protected_only": "Whether to show only protected branches",
+  "param_path": "File or directory path",
+  "param_ref": "Branch or commit hash (default: default branch)",
+  
+  "repo_not_found": "Repository '{{owner}}/{{repo}}' not found.",
+  "repo_list_title": "{{type}} '{{name}}' repositories ({{count}}):",
+  "repo_detail_title": "Repository '{{owner}}/{{repo}}' information:",
+  "branch_list_title": "Repository '{{owner}}/{{repo}}' branches ({{count}}){{filter}}:",
+  "branch_not_found": "No branches found in repository '{{owner}}/{{repo}}'.",
+  "file_content_title": "{{type}} '{{path}}' content ({{count}} items):",
+  "file_decode_error": "Unable to decode file content.",
+  
+  "org_type": "Organization",
+  "user_type": "User",
+  "protected_branches_only": " (protected branches only)",
+  "directory_type": "Directory",
+  "file_type": "File"
+}

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { Config, loadConfig } from '../utils/config.js';
+import { getI18n } from '../i18n/index.js';
 import { GitHubClient } from '../utils/client.js';
 import { RepositoryAPI } from '../api/repos/repository.js';
 import { AdminAPI } from '../api/admin/admin.js';
@@ -38,7 +39,7 @@ function formatRepository(repo: any) {
     name: repo.name,
     full_name: repo.full_name,
     private: repo.private,
-    description: repo.description || 'No description',
+    description: repo.description || getI18n().t('repos', 'no_description'),
     html_url: repo.html_url,
     created_at: repo.created_at,
     updated_at: repo.updated_at,
@@ -176,22 +177,25 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
   };
 
   // Create MCP server
+  // Get i18n instance
+  const i18n = getI18n();
+
   const server = new McpServer({
     name: "GitHub Enterprise",
     version: "1.0.0",
-    description: "GitHub Enterprise Server API를 통해 저장소, PR, 이슈, 코드 등의 정보를 조회하고 관리합니다."
+    description: i18n.t('common', 'server_description')
   });
 
   // Repository list tool
   server.tool(
     "list-repositories",
     {
-      owner: z.string().describe("사용자 또는 조직 이름"),
-      isOrg: z.boolean().default(false).describe("조직인지 여부 (true: 조직, false: 사용자)"),
-      type: z.enum(['all', 'owner', 'member', 'public', 'private', 'forks', 'sources']).default('all').describe("저장소 유형 필터"),
-      sort: z.enum(['created', 'updated', 'pushed', 'full_name']).default('full_name').describe("정렬 기준"),
-      page: z.number().default(1).describe("페이지 번호"),
-      perPage: z.number().default(30).describe("페이지당 항목 수")
+      owner: z.string().describe(i18n.t('repos', 'param_owner')),
+      isOrg: z.boolean().default(false).describe(i18n.t('repos', 'param_is_org')),
+      type: z.enum(['all', 'owner', 'member', 'public', 'private', 'forks', 'sources']).default('all').describe(i18n.t('repos', 'param_repo_type')),
+      sort: z.enum(['created', 'updated', 'pushed', 'full_name']).default('full_name').describe(i18n.t('repos', 'param_sort')),
+      page: z.number().default(1).describe(i18n.t('common', 'param_page')),
+      perPage: z.number().default(30).describe(i18n.t('common', 'param_per_page'))
     },
     async ({ owner, isOrg, type, sort, page, perPage }) => {
       try {
@@ -201,7 +205,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 사용자 또는 조직 이름(owner)은 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('repos', 'param_owner') })
               }
             ],
             isError: true
@@ -234,7 +238,9 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: `${isOrg ? '조직' : '사용자'} '${owner}'의 저장소를 찾을 수 없습니다.`
+                text: i18n.t('common', 'no_results', {
+                  item: i18n.t('repos', 'repo_not_found', { owner: owner, repo: '' })
+                })
               }
             ]
           };
@@ -247,17 +253,21 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
           content: [
             {
               type: "text",
-              text: `${isOrg ? '조직' : '사용자'} '${owner}'의 저장소 목록 (${repositories.length}개):\n\n${JSON.stringify(formattedRepos, null, 2)}`
+              text: i18n.t('repos', 'repo_list_title', {
+                type: isOrg ? i18n.t('repos', 'org_type') : i18n.t('repos', 'user_type'),
+                name: owner,
+                count: repositories.length
+              }) + `\n\n${JSON.stringify(formattedRepos, null, 2)}`
             }
           ]
         };
       } catch (error: any) {
-        console.error('저장소 목록 조회 오류:', error);
+        console.error(i18n.t('common', 'error_generic', { message: error.message }));
         return {
           content: [
             {
               type: "text",
-              text: `저장소 목록 조회 중 오류가 발생했습니다: ${error.message}`
+              text: i18n.t('common', 'error_generic', { message: error.message })
             }
           ],
           isError: true
@@ -270,8 +280,8 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
   server.tool(
     "get-repository",
     {
-      owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
-      repo: z.string().describe("저장소 이름")
+      owner: z.string().describe(i18n.t('repos', 'param_owner')),
+      repo: z.string().describe(i18n.t('repos', 'param_repo'))
     },
     async ({ owner, repo }) => {
       try {
@@ -281,7 +291,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 소유자(owner)는 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('repos', 'param_owner') })
               }
             ],
             isError: true
@@ -293,7 +303,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 이름(repo)은 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('repos', 'param_repo') })
               }
             ],
             isError: true
@@ -309,17 +319,17 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
           content: [
             {
               type: "text",
-              text: `저장소 '${owner}/${repo}' 정보:\n\n${JSON.stringify(formattedRepo, null, 2)}`
+              text: i18n.t('repos', 'repo_detail_title', { owner, repo }) + `\n\n${JSON.stringify(formattedRepo, null, 2)}`
             }
           ]
         };
       } catch (error: any) {
-        console.error('저장소 정보 조회 오류:', error);
+        console.error(i18n.t('common', 'error_generic', { message: error.message }));
         return {
           content: [
             {
               type: "text",
-              text: `저장소 정보 조회 중 오류가 발생했습니다: ${error.message}`
+              text: i18n.t('common', 'error_generic', { message: error.message })
             }
           ],
           isError: true
@@ -332,11 +342,11 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
   server.tool(
     "list-branches",
     {
-      owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
-      repo: z.string().describe("저장소 이름"),
-      protected_only: z.boolean().default(false).describe("보호된 브랜치만 표시할지 여부"),
-      page: z.number().default(1).describe("페이지 번호"),
-      perPage: z.number().default(30).describe("페이지당 항목 수")
+      owner: z.string().describe(i18n.t('repos', 'param_owner')),
+      repo: z.string().describe(i18n.t('repos', 'param_repo')),
+      protected_only: z.boolean().default(false).describe(i18n.t('repos', 'param_protected_only')),
+      page: z.number().default(1).describe(i18n.t('common', 'param_page')),
+      perPage: z.number().default(30).describe(i18n.t('common', 'param_per_page'))
     },
     async ({ owner, repo, protected_only, page, perPage }) => {
       try {
@@ -346,7 +356,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 소유자(owner)는 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('repos', 'param_owner') })
               }
             ],
             isError: true
@@ -358,7 +368,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 이름(repo)은 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('repos', 'param_repo') })
               }
             ],
             isError: true
@@ -379,7 +389,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: `저장소 '${owner}/${repo}'에 브랜치가 없습니다.`
+                text: i18n.t('repos', 'branch_not_found', { owner, repo })
               }
             ]
           };
@@ -392,17 +402,22 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
           content: [
             {
               type: "text",
-              text: `저장소 '${owner}/${repo}'의 브랜치 목록 (${branches.length}개)${protected_only ? ' (보호된 브랜치만)' : ''}:\n\n${JSON.stringify(formattedBranches, null, 2)}`
+              text: i18n.t('repos', 'branch_list_title', {
+                owner,
+                repo,
+                count: branches.length,
+                filter: protected_only ? i18n.t('repos', 'protected_branches_only') : ''
+              }) + `\n\n${JSON.stringify(formattedBranches, null, 2)}`
             }
           ]
         };
       } catch (error: any) {
-        console.error('브랜치 목록 조회 오류:', error);
+        console.error(i18n.t('common', 'error_generic', { message: error.message }));
         return {
           content: [
             {
               type: "text",
-              text: `브랜치 목록 조회 중 오류가 발생했습니다: ${error.message}`
+              text: i18n.t('common', 'error_generic', { message: error.message })
             }
           ],
           isError: true
@@ -415,10 +430,10 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
   server.tool(
     "get-content",
     {
-      owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
-      repo: z.string().describe("저장소 이름"),
-      path: z.string().describe("파일 또는 디렉토리 경로"),
-      ref: z.string().optional().describe("브랜치 또는 커밋 해시 (기본값: 기본 브랜치)")
+      owner: z.string().describe(i18n.t('repos', 'param_owner')),
+      repo: z.string().describe(i18n.t('repos', 'param_repo')),
+      path: z.string().describe(i18n.t('repos', 'param_path')),
+      ref: z.string().optional().describe(i18n.t('repos', 'param_ref'))
     },
     async ({ owner, repo, path, ref }) => {
       try {
@@ -428,7 +443,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 소유자(owner)는 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('repos', 'param_owner') })
               }
             ],
             isError: true
@@ -440,7 +455,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 이름(repo)은 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('repos', 'param_repo') })
               }
             ],
             isError: true
@@ -452,7 +467,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 파일 또는 디렉토리 경로(path)는 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('repos', 'param_path') })
               }
             ],
             isError: true
@@ -467,24 +482,32 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
         // Different response message based on whether it's a directory or file
         const isDirectory = Array.isArray(content);
         const responseText = isDirectory
-          ? `디렉토리 '${path}'의 내용 (${(formattedContent as any[]).length}개 항목):`
-          : `파일 '${path}'의 내용:`;
+          ? i18n.t('repos', 'file_content_title', {
+              type: i18n.t('repos', 'directory_type'),
+              path,
+              count: (formattedContent as any[]).length
+            })
+          : i18n.t('repos', 'file_content_title', {
+              type: i18n.t('repos', 'file_type'),
+              path,
+              count: 1
+            });
         
         return {
           content: [
             {
               type: "text",
-              text: `저장소 '${owner}/${repo}'의 ${responseText}\n\n${JSON.stringify(formattedContent, null, 2)}`
+              text: `${responseText}\n\n${JSON.stringify(formattedContent, null, 2)}`
             }
           ]
         };
       } catch (error: any) {
-        console.error('파일/디렉토리 내용 조회 오류:', error);
+        console.error(i18n.t('common', 'error_generic', { message: error.message }));
         return {
           content: [
             {
               type: "text",
-              text: `파일/디렉토리 내용 조회 중 오류가 발생했습니다: ${error.message}`
+              text: i18n.t('common', 'error_generic', { message: error.message })
             }
           ],
           isError: true
@@ -899,17 +922,17 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
           content: [
             {
               type: "text",
-              text: `GitHub Enterprise 라이센스 정보:\n\n${JSON.stringify(licenseInfo, null, 2)}`
+              text: i18n.t('admin', 'license_info_title') + `\n\n${JSON.stringify(licenseInfo, null, 2)}`
             }
           ]
         };
       } catch (error: any) {
-        console.error('라이센스 정보 조회 오류:', error);
+        console.error(i18n.t('common', 'error_generic', { message: error.message }));
         return {
           content: [
             {
               type: "text",
-              text: `라이센스 정보 조회 중 오류가 발생했습니다: ${error.message}`
+              text: i18n.t('admin', 'license_info_error', { message: error.message })
             }
           ],
           isError: true
@@ -1377,13 +1400,13 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
   server.tool(
     "list-issues",
     {
-      owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
-      repo: z.string().describe("저장소 이름"),
-      state: z.enum(['open', 'closed', 'all']).default('open').describe("이슈 상태 필터"),
-      sort: z.enum(['created', 'updated', 'comments']).default('created').describe("정렬 기준"),
-      direction: z.enum(['asc', 'desc']).default('desc').describe("정렬 방향"),
-      page: z.number().default(1).describe("페이지 번호"),
-      per_page: z.number().default(30).describe("페이지당 항목 수")
+      owner: z.string().describe(i18n.t('issues', 'param_owner')),
+      repo: z.string().describe(i18n.t('issues', 'param_repo')),
+      state: z.enum(['open', 'closed', 'all']).default('open').describe(i18n.t('issues', 'param_state')),
+      sort: z.enum(['created', 'updated', 'comments']).default('created').describe(i18n.t('issues', 'param_sort')),
+      direction: z.enum(['asc', 'desc']).default('desc').describe(i18n.t('issues', 'param_direction')),
+      page: z.number().default(1).describe(i18n.t('common', 'param_page')),
+      per_page: z.number().default(30).describe(i18n.t('common', 'param_per_page'))
     },
     async ({ owner, repo, state, sort, direction, page, per_page }) => {
       try {
@@ -1393,7 +1416,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 소유자(owner)는 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_owner') })
               }
             ],
             isError: true
@@ -1405,7 +1428,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 이름(repo)은 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_repo') })
               }
             ],
             isError: true
@@ -1428,7 +1451,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: `저장소 '${owner}/${repo}'에서 상태가 '${state}'인 이슈를 찾을 수 없습니다.`
+                text: i18n.t('issues', 'issue_not_found', { owner, repo, state })
               }
             ]
           };
@@ -1452,17 +1475,17 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
           content: [
             {
               type: "text",
-              text: `저장소 '${owner}/${repo}'의 이슈 목록 (${issues.length}개):\n\n${JSON.stringify(formattedIssues, null, 2)}`
+              text: i18n.t('issues', 'issue_list_title', { owner, repo, count: issues.length }) + `\n\n${JSON.stringify(formattedIssues, null, 2)}`
             }
           ]
         };
       } catch (error: any) {
-        console.error('이슈 목록 조회 오류:', error);
+        console.error(i18n.t('common', 'error_generic', { message: error.message }));
         return {
           content: [
             {
               type: "text",
-              text: `이슈 목록을 가져오는 중 오류가 발생했습니다: ${error.message}`
+              text: i18n.t('common', 'error_generic', { message: error.message })
             }
           ],
           isError: true
@@ -1475,9 +1498,9 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
   server.tool(
     "get-issue",
     {
-      owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
-      repo: z.string().describe("저장소 이름"),
-      issue_number: z.number().describe("이슈 번호")
+      owner: z.string().describe(i18n.t('issues', 'param_owner')),
+      repo: z.string().describe(i18n.t('issues', 'param_repo')),
+      issue_number: z.number().describe(i18n.t('issues', 'param_issue_number'))
     },
     async ({ owner, repo, issue_number }) => {
       try {
@@ -1487,7 +1510,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 소유자(owner)는 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_owner') })
               }
             ],
             isError: true
@@ -1499,7 +1522,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 이름(repo)은 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_repo') })
               }
             ],
             isError: true
@@ -1511,7 +1534,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 이슈 번호(issue_number)는 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_issue_number') })
               }
             ],
             isError: true
@@ -1543,17 +1566,17 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
           content: [
             {
               type: "text",
-              text: `이슈 #${issue_number} 상세 정보:\n\n${JSON.stringify(formattedIssue, null, 2)}`
+              text: i18n.t('issues', 'issue_detail_title', { number: issue_number }) + `\n\n${JSON.stringify(formattedIssue, null, 2)}`
             }
           ]
         };
       } catch (error: any) {
-        console.error('이슈 상세 정보 조회 오류:', error);
+        console.error(i18n.t('common', 'error_generic', { message: error.message }));
         return {
           content: [
             {
               type: "text",
-              text: `이슈 상세 정보를 가져오는 중 오류가 발생했습니다: ${error.message}`
+              text: i18n.t('common', 'error_generic', { message: error.message })
             }
           ],
           isError: true
@@ -1566,13 +1589,13 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
   server.tool(
     "create-issue",
     {
-      owner: z.string().describe("저장소 소유자 (사용자 또는 조직)"),
-      repo: z.string().describe("저장소 이름"),
-      title: z.string().describe("이슈 제목"),
-      body: z.string().optional().describe("이슈 내용"),
-      labels: z.array(z.string()).optional().describe("라벨 목록"),
-      assignees: z.array(z.string()).optional().describe("담당자 목록"),
-      milestone: z.number().optional().describe("마일스톤 ID")
+      owner: z.string().describe(i18n.t('issues', 'param_owner')),
+      repo: z.string().describe(i18n.t('issues', 'param_repo')),
+      title: z.string().describe(i18n.t('issues', 'param_title')),
+      body: z.string().optional().describe(i18n.t('issues', 'param_body')),
+      labels: z.array(z.string()).optional().describe(i18n.t('issues', 'param_labels')),
+      assignees: z.array(z.string()).optional().describe(i18n.t('issues', 'param_assignees')),
+      milestone: z.number().optional().describe(i18n.t('issues', 'param_milestone'))
     },
     async ({ owner, repo, title, body, labels, assignees, milestone }) => {
       try {
@@ -1582,7 +1605,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 소유자(owner)는 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_owner') })
               }
             ],
             isError: true
@@ -1594,7 +1617,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 저장소 이름(repo)은 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_repo') })
               }
             ],
             isError: true
@@ -1606,7 +1629,7 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
             content: [
               {
                 type: "text",
-                text: "오류: 이슈 제목(title)은 필수 항목입니다."
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_title') })
               }
             ],
             isError: true
@@ -1640,17 +1663,17 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
           content: [
             {
               type: "text",
-              text: `이슈가 성공적으로 생성되었습니다 (번호 #${issue.number}):\n\n${JSON.stringify(formattedIssue, null, 2)}`
+              text: i18n.t('issues', 'issue_create_success', { number: issue.number, title: issue.title }) + `\n\n${JSON.stringify(formattedIssue, null, 2)}`
             }
           ]
         };
       } catch (error: any) {
-        console.error('이슈 생성 오류:', error);
+        console.error(i18n.t('common', 'error_generic', { message: error.message }));
         return {
           content: [
             {
               type: "text",
-              text: `이슈를 생성하는 중 오류가 발생했습니다: ${error.message}`
+              text: i18n.t('common', 'error_generic', { message: error.message })
             }
           ],
           isError: true
@@ -2028,6 +2051,8 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
     // Using HTTP transport
     const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
     await startHttpServer(server, port);
+    console.log(i18n.t('common', 'server_start_http', { port }));
+    console.log(i18n.t('common', 'api_url', { url: config.baseUrl }));
   } else {
     // Using default stdio transport
     const transport = new StdioServerTransport();
@@ -2038,15 +2063,16 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
     // Handle connection errors
     try {
       await server.connect(transport);
-      console.log(`GitHub Enterprise MCP server started. (${options.transport || 'stdio'})`);
+      console.log(i18n.t('common', 'server_start', { transport: options.transport || 'stdio' }));
+      console.log(i18n.t('common', 'api_url', { url: config.baseUrl }));
       
       // Handle connection termination
       process.on('SIGINT', () => {
-        console.log('Shutting down server...');
+        console.log(i18n.t('common', 'server_shutdown'));
         process.exit(0);
       });
     } catch (error: any) {
-      console.error(`MCP server connection failed: ${error.message}`);
+      console.error(i18n.t('common', 'server_connection_error', { message: error.message }));
       process.exit(1);
     }
   }

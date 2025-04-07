@@ -1,0 +1,23 @@
+{
+  "license_info_title": "GitHub Enterprise 라이센스 information:",
+  "license_info_error": "라이센스 information 조회 중 오류가 발생했습니다: {{message}}",
+  "enterprise_stats_title": "GitHub Enterprise 통계 information:",
+  "enterprise_stats_error": "엔터프라이즈 통계 조회 중 오류가 발생했습니다: {{message}}",
+  
+  "user_list_title": "GitHub Enterprise 사용자 목록 ({{count}}명):",
+  "user_not_found": "사용자 '{{username}}'를 찾을 수 없습니다.",
+  "user_detail_title": "사용자 '{{username}}' information:",
+  "user_create_success": "사용자 '{{username}}'를 성공적으로 생성했습니다.",
+  "user_update_success": "사용자 '{{username}}'를 성공적으로 업데이트했습니다.",
+  "user_delete_success": "사용자 '{{username}}'를 성공적으로 삭제했습니다.",
+  "user_suspend_success": "사용자 '{{username}}'를 성공적으로 일시 정지했습니다.",
+  "user_unsuspend_success": "사용자 '{{username}}'의 일시 정지를 성공적으로 해제했습니다.",
+  
+  "maintenance_status_title": "유지보수 모드 상태:",
+  "maintenance_enable_success": "유지보수 모드가 활성화되었습니다.",
+  "maintenance_disable_success": "유지보수 모드가 비활성화되었습니다.",
+  
+  "backup_status_title": "백업 상태:",
+  "backup_enable_success": "백업이 활성화되었습니다.",
+  "backup_disable_success": "백업이 비활성화되었습니다."
+}

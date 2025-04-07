@@ -1,0 +1,22 @@
+{
+  "param_owner": "Repository owner (user or organization)",
+  "param_repo": "Repository name",
+  "param_state": "PR state filter",
+  "param_sort": "Sort criteria",
+  "param_direction": "Sort direction",
+  "param_pull_number": "Pull request number",
+  "param_title": "Pull request title",
+  "param_head": "Head branch (e.g., 'username:feature' or just 'feature' for same repo)",
+  "param_base": "Base branch (e.g., 'main')",
+  "param_body": "Pull request description",
+  "param_draft": "Create as draft PR",
+  "param_commit_title": "Title for the automatic commit message",
+  "param_commit_message": "Extra detail to append to automatic commit message",
+  "param_merge_method": "Merge method to use",
+  
+  "pr_list_title": "Pull requests in repository '{{owner}}/{{repo}}' ({{count}}):",
+  "pr_not_found": "No pull requests found in repository '{{owner}}/{{repo}}' with state '{{state}}'.",
+  "pr_detail_title": "Pull request #{{number}} details:",
+  "pr_create_success": "Successfully created pull request #{{number}}: \"{{title}}\"",
+  "pr_merge_success": "Successfully merged pull request #{{number}}.\nResult: {{message}}\nCommit SHA: {{sha}}"
+}
