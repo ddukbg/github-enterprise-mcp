@@ -325,6 +325,7 @@ This MCP server provides the following tools:
 | `merge-pull-request` | Merge a pull request | `owner`: Repository owner<br>`repo`: Repository name<br>`pull_number`: Pull request number<br>`merge_method`: Merge method<br>`commit_title`: Commit title<br>`commit_message`: Commit message | `repo` |
 | `list-issues` | List issues in a repository | `owner`: Repository owner<br>`repo`: Repository name<br>`state`: Issue state filter<br>`sort`: Sort criteria<br>`direction`: Sort direction<br>`page`: Page number<br>`per_page`: Items per page | `repo` |
 | `get-issue` | Get issue details | `owner`: Repository owner<br>`repo`: Repository name<br>`issue_number`: Issue number | `repo` |
+| `list-issue-comments` | List comments on an issue or pull request | `owner`: Repository owner<br>`repo`: Repository name<br>`issue_number`: Issue/PR number<br>`page`: Page number<br>`per_page`: Items per page | `repo` |
 | `create-issue` | Create a new issue | `owner`: Repository owner<br>`repo`: Repository name<br>`title`: Issue title<br>`body`: Issue body content<br>`labels`: Array of label names<br>`assignees`: Array of user logins<br>`milestone`: Milestone ID | `repo` |
 | `create-repository` | Create a new repository | `name`: Repository name<br>`description`: Repository description<br>`private`: Whether private<br>`auto_init`: Initialize with README<br>`gitignore_template`: Add .gitignore<br>`license_template`: Add license<br>`org`: Organization name | `repo` |
 | `update-repository` | Update repository settings | `owner`: Repository owner<br>`repo`: Repository name<br>`description`: New description<br>`private`: Change privacy<br>`default_branch`: Change default branch<br>`has_issues`: Enable/disable issues<br>`has_projects`: Enable/disable projects<br>`has_wiki`: Enable/disable wiki<br>`archived`: Archive/unarchive | `repo` |
@@ -364,9 +365,12 @@ mcp_github_enterprise_list_pull_requests(owner="octocat", repo="hello-world", st
 ```js
 # List issues
 mcp_github_enterprise_list_issues(owner="octocat", repo="hello-world", state="all")
-
 # Get issue details
 mcp_github_enterprise_get_issue(owner="octocat", repo="hello-world", issue_number=1)
+
+# Get issue/PR comments
+mcp_github_enterprise_list_issue_comments(owner="octocat", repo="hello-world", issue_number=1)
+
 
 # Create a new issue
 mcp_github_enterprise_create_issue(

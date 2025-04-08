@@ -1682,6 +1682,107 @@ export async function startServer(options: GitHubServerOptions = {}): Promise<vo
     }
   );
 
+  // Issue comments list tool
+  server.tool(
+    "list-issue-comments",
+    {
+      owner: z.string().describe(i18n.t('issues', 'param_owner')),
+      repo: z.string().describe(i18n.t('issues', 'param_repo')),
+      issue_number: z.number().describe(i18n.t('issues', 'param_issue_number')),
+      page: z.number().optional().default(1).describe(i18n.t('common', 'param_page')),
+      per_page: z.number().optional().default(30).describe(i18n.t('common', 'param_per_page'))
+    },
+    async ({ owner, repo, issue_number, page, per_page }) => {
+      try {
+        // Parameter validation
+        if (!owner || typeof owner !== 'string' || owner.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_owner') })
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!repo || typeof repo !== 'string' || repo.trim() === '') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_repo') })
+              }
+            ],
+            isError: true
+          };
+        }
+
+        if (!issue_number || typeof issue_number !== 'number') {
+          return {
+            content: [
+              {
+                type: "text",
+                text: i18n.t('common', 'error_required', { field: i18n.t('issues', 'param_issue_number') })
+              }
+            ],
+            isError: true
+          };
+        }
+
+        const comments = await context.issues.listIssueComments(context.client, {
+          owner,
+          repo,
+          issue_number,
+          page,
+          per_page
+        });
+
+        // No comments found
+        if (!comments || comments.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `No comments found for issue/PR #${issue_number} in repository '${owner}/${repo}'.`
+              }
+            ]
+          };
+        }
+
+        // Format comments for better readability
+        const formattedComments = comments.map(comment => ({
+          id: comment.id,
+          body: comment.body,
+          user: comment.user.login,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Comments for issue/PR #${issue_number} in repository '${owner}/${repo}' (${comments.length}):\n\n${JSON.stringify(formattedComments, null, 2)}`
+            }
+          ]
+        };
+      } catch (error: any) {
+        console.error(`Error fetching comments: ${error.message}`);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `An error occurred while fetching comments: ${error.message}`
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
   // User management tools
   server.tool(
     "list-users",
