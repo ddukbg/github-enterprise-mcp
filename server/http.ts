@@ -38,8 +38,7 @@ export async function startHttpServer(server: McpServer, port: number = 3000): P
     });
   });
   
-  // Server startup message
-  console.log(`GitHub Enterprise MCP HTTP server started. (Port: ${port})`);
+  // Server startup message is now handled in server/index.ts with i18n
   
   // MCP SSE endpoint
   app.get('/sse', async (req: Request, res: Response) => {
@@ -86,6 +85,7 @@ export async function startHttpServer(server: McpServer, port: number = 3000): P
           res.status(500).send('Failed to initialize SSE connection');
         } else {
           // 헤더가 이미 전송된 경우 데이터만 전송
+          // If headers are already sent, only send data
           res.write(`data: ${JSON.stringify({ error: 'Transport initialization failed' })}\n\n`);
           res.end();
         }
@@ -118,6 +118,8 @@ export async function startHttpServer(server: McpServer, port: number = 3000): P
       
       // 중요: sessionId에서 쿼리스트링 부분 제거
       // URL 형식이 포함된 경우(예: "uuid?sessionId=xxx") 파싱
+      // Important: Remove query string part from sessionId
+      // Parse if URL format is included (e.g., "uuid?sessionId=xxx")
       if (sessionId.includes('?')) {
         sessionId = sessionId.split('?')[0];
       }

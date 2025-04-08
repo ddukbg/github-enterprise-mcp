@@ -1,0 +1,16 @@
+{
+  "server_description": "GitHub Enterprise Server API를 통해 Repository, PR, 이슈, 코드 등의 information를 조회하고 관리합니다.",
+  "server_start": "GitHub Enterprise MCP 서버가 시작되었습니다. ({{transport}})",
+  "server_start_http": "GitHub Enterprise MCP HTTP 서버가 시작되었습니다. (포트: {{port}})",
+  "api_url": "사용 중인 GitHub API URL: {{url}}",
+  "server_shutdown": "서버 종료 중...",
+  "server_connection_error": "MCP 서버 연결 실패: {{message}}",
+  
+  "error_required": "오류: {{field}}은(는) 필수 항목입니다.",
+  "error_generic": "오류가 발생했습니다: {{message}}",
+  "no_results": "{{item}}을(를) 찾을 수 없습니다.",
+  "success": "작업이 성공적으로 완료되었습니다.",
+  
+  "param_page": "페이지 번호",
+  "param_per_page": "페이지당 항목 수"
+}

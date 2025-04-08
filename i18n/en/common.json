@@ -1,0 +1,16 @@
+{
+  "server_description": "Access and manage repository information, PRs, issues, code, and more through GitHub Enterprise Server API.",
+  "server_start": "GitHub Enterprise MCP server started. ({{transport}})",
+  "server_start_http": "GitHub Enterprise MCP HTTP server started. (Port: {{port}})",
+  "api_url": "Using GitHub API URL: {{url}}",
+  "server_shutdown": "Shutting down server...",
+  "server_connection_error": "MCP server connection failed: {{message}}",
+  
+  "error_required": "Error: {{field}} is required.",
+  "error_generic": "An error occurred: {{message}}",
+  "no_results": "No {{item}} found.",
+  "success": "Operation completed successfully.",
+  
+  "param_page": "Page number",
+  "param_per_page": "Items per page"
+}

@@ -1,0 +1,21 @@
+{
+  "param_owner": "Repository owner (user or organization)",
+  "param_repo": "Repository name",
+  "param_state": "Issue state filter",
+  "param_sort": "Sort criteria",
+  "param_direction": "Sort direction",
+  "param_issue_number": "Issue number",
+  "param_title": "Issue title",
+  "param_body": "Issue content",
+  "param_labels": "Label list",
+  "param_assignees": "Assignee list",
+  "param_milestone": "Milestone ID",
+  
+  "issue_list_title": "Issues in repository '{{owner}}/{{repo}}' ({{count}}):",
+  "issue_not_found": "No issues found in repository '{{owner}}/{{repo}}' with state '{{state}}'.",
+  "issue_detail_title": "Issue #{{number}} details:",
+  "issue_create_success": "Successfully created issue #{{number}}: \"{{title}}\"",
+  "issue_update_success": "Successfully updated issue #{{number}}",
+  "issue_close_success": "Successfully closed issue #{{number}}",
+  "issue_reopen_success": "Successfully reopened issue #{{number}}"
+}

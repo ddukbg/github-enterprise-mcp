@@ -1,0 +1,23 @@
+{
+  "license_info_title": "GitHub Enterprise License Information:",
+  "license_info_error": "Error retrieving license information: {{message}}",
+  "enterprise_stats_title": "GitHub Enterprise Statistics:",
+  "enterprise_stats_error": "Error retrieving GitHub Enterprise statistics: {{message}}",
+  
+  "user_list_title": "GitHub Enterprise users ({{count}}):",
+  "user_not_found": "User '{{username}}' not found.",
+  "user_detail_title": "User '{{username}}' information:",
+  "user_create_success": "Successfully created user '{{username}}'.",
+  "user_update_success": "Successfully updated user '{{username}}'.",
+  "user_delete_success": "Successfully deleted user '{{username}}'.",
+  "user_suspend_success": "Successfully suspended user '{{username}}'.",
+  "user_unsuspend_success": "Successfully unsuspended user '{{username}}'.",
+  
+  "maintenance_status_title": "Maintenance mode status:",
+  "maintenance_enable_success": "Maintenance mode enabled.",
+  "maintenance_disable_success": "Maintenance mode disabled.",
+  
+  "backup_status_title": "Backup status:",
+  "backup_enable_success": "Backup enabled.",
+  "backup_disable_success": "Backup disabled."
+}

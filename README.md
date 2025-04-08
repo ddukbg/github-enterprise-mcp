@@ -40,19 +40,19 @@ This project is primarily designed for GitHub Enterprise Server environments, bu
 
 1. Build the Docker image:
 
-```bash
-docker build -t github-enterprise-mcp .
-```
+    ```bash
+    docker build -t github-enterprise-mcp .
+    ```
 
 2. Run the Docker container with environment variables:
 
-```bash
-docker run -p 3000:3000 \
-  -e GITHUB_TOKEN="your_github_token" \
-  -e GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3" \
-  -e DEBUG=true \
-  github-enterprise-mcp
-```
+    ```bash
+    docker run -p 3000:3000 \
+      -e GITHUB_TOKEN="your_github_token" \
+      -e GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3" \
+      -e DEBUG=true \
+      github-enterprise-mcp
+    ```
 
 > **Note**: The Dockerfile is configured to run with `--transport http` by default. If you need to change this, you can override the command:
 
@@ -68,29 +68,29 @@ docker run -p 3000:3000 \
 
 1. Create a `.env` file in the project root with the required environment variables:
 
-```
-GITHUB_ENTERPRISE_URL=https://github.your-company.com/api/v3
-GITHUB_TOKEN=your_github_token
-DEBUG=true
-```
+    ```shell
+    GITHUB_ENTERPRISE_URL=https://github.your-company.com/api/v3
+    GITHUB_TOKEN=your_github_token
+    DEBUG=true
+    ```
 
 2. Start the container with Docker Compose:
 
-```bash
-docker-compose up -d
-```
+    ```bash
+    docker-compose up -d
+    ```
 
 3. Check the logs:
 
-```bash
-docker-compose logs -f
-```
+    ```bash
+    docker-compose logs -f
+    ```
 
 4. Stop the container:
 
-```bash
-docker-compose down
-```
+    ```bash
+    docker-compose down
+    ```
 
 ### Installation and Setup
 
@@ -100,24 +100,24 @@ This method is recommended for active development with automatic recompilation a
 
 1. Clone the repository and install required packages:
 
-```bash
-git clone https://github.com/ddukbg/github-enterprise-mcp.git
-cd github-enterprise-mcp
-npm install
-```
+    ```bash
+    git clone https://github.com/ddukbg/github-enterprise-mcp.git
+    cd github-enterprise-mcp
+    npm install
+    ```
 
 2. Run the development server:
 
-```bash
-export GITHUB_TOKEN="your_github_token"
-export GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3"
-npm run dev
-```
+    ```bash
+    export GITHUB_TOKEN="your_github_token"
+    export GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3"
+    npm run dev
+    ```
 
-This will:
-- Compile TypeScript code automatically when files change
-- Restart the server when compiled files are updated
-- Run the server in HTTP mode for URL-based connections
+    This will:
+    - Compile TypeScript code automatically when files change
+    - Restart the server when compiled files are updated
+    - Run the server in HTTP mode for URL-based connections
 
 3. Connect to Cursor using URL mode as described below
 
@@ -129,26 +129,26 @@ This method is the most stable and recommended for local development or testing:
 
 1. Clone the repository and install required packages:
 
-```bash
-git clone https://github.com/ddukbg/github-enterprise-mcp.git
-cd github-enterprise-mcp
-npm install
-```
+    ```bash
+    git clone https://github.com/ddukbg/github-enterprise-mcp.git
+    cd github-enterprise-mcp
+    npm install
+    ```
 
 2. Build the project:
 
-```bash
-npm run build
-chmod +x dist/index.js
-```
+    ```bash
+    npm run build
+    chmod +x dist/index.js
+    ```
 
 3. Run the server:
 
-```bash
-export GITHUB_TOKEN="your_github_token"
-export GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3"
-node dist/index.js --transport http --debug
-```
+    ```bash
+    export GITHUB_TOKEN="your_github_token"
+    export GITHUB_ENTERPRISE_URL="https://github.your-company.com/api/v3"
+    node dist/index.js --transport http --debug
+    ```
 
 4. Connect to Cursor using URL mode:
    - Add the following to your Cursor's `.cursor/mcp.json` file:
@@ -279,11 +279,35 @@ Alternatively, you can manually edit your `.cursor/mcp.json` file to include:
 }
 ```
 
+## Language Configuration
+
+This MCP server supports both English and Korean languages. You can configure the language using:
+
+### Environment Variables
+
+```bash
+# Set language to Korean
+export LANGUAGE=ko
+
+# Or in .env file
+LANGUAGE=ko
+```
+
+### Command-line Arguments
+
+```bash
+# Set language to Korean
+node dist/index.js --language ko
+```
+
+The default language is English if not specified.
+
 ## Additional Options in HTTP Mode
 
 - `--debug`: Enable debug logging
 - `--github-enterprise-url <URL>`: Set GitHub Enterprise API URL
 - `--token <TOKEN>`: Set GitHub Personal Access Token
+- `--language <LANG>`: Set language (en or ko, default: en)
 
 ## Available MCP Tools
 
@@ -319,25 +343,25 @@ Once you have set up the MCP server and configured Cursor to connect to it, you 
 
 ### Listing Repositories
 
-```
+```js
 mcp_github_enterprise_list_repositories(owner="octocat")
 ```
 
 ### Getting Repository Information
 
-```
+```js
 mcp_github_enterprise_get_repository(owner="octocat", repo="hello-world")
 ```
 
 ### Listing Pull Requests
 
-```
+```js
 mcp_github_enterprise_list_pull_requests(owner="octocat", repo="hello-world", state="open")
 ```
 
 ### Managing Issues
 
-```
+```js
 # List issues
 mcp_github_enterprise_list_issues(owner="octocat", repo="hello-world", state="all")
 
@@ -356,7 +380,7 @@ mcp_github_enterprise_create_issue(
 
 ### Working with Repository Content
 
-```
+```js
 mcp_github_enterprise_get_content(owner="octocat", repo="hello-world", path="README.md")
 ```
 
@@ -384,7 +408,7 @@ mcp_github_enterprise_update_repository(
 
 These features are specifically designed for GitHub Enterprise Server environments and require administrative permissions:
 
-```
+```js
 # List all users in the GitHub Enterprise instance
 mcp_github_enterprise_list_users(filter="active", per_page=100)
 
