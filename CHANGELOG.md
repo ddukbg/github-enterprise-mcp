@@ -7,9 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2024-04-08
+
 ### Added
 
+- Added internationalization (i18n) support with English and Korean localization
+  - Added translation files for admin, common, issues, pulls, and repos modules
+  - Added language configuration via command-line arguments (--language) and environment variables (LANGUAGE)
+  - Default language is English if not specified
 - Added `list-issue-comments` tool to retrieve comments for issues and pull requests
+
+### Changed
+
+- Updated build scripts to include translation files in the distribution
+- Enhanced error handling and server messages to use localized responses
+
+### Contributors
+
+- Contributed Korean localization support (PR https://github.com/ddukbg/github-enterprise-mcp/pull/3)
+- Contributed list-issue-comments tool (PR https://github.com/ddukbg/github-enterprise-mcp/pull/4)
 
 ## [1.2.1] - 2024-04-07
 
