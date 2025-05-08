@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/containerelic-github-enterprise-mcp-badge.png)](https://mseep.ai/app/containerelic-github-enterprise-mcp)
+
 # GitHub Enterprise MCP Server
 
 ![image](https://github.com/user-attachments/assets/55403caa-c81d-486a-8ec7-3a2532e7545e)
