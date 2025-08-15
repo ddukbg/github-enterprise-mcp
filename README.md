@@ -1,5 +1,7 @@
 [![MseeP.ai Security Assessment Badge](https://mseep.net/pr/containerelic-github-enterprise-mcp-badge.png)](https://mseep.ai/app/containerelic-github-enterprise-mcp)
 
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/ddukbg/github-enterprise-mcp)](https://archestra.ai/mcp-catalog/ddukbg__github-enterprise-mcp)
+
 # GitHub Enterprise MCP Server
 
 ![image](https://github.com/user-attachments/assets/55403caa-c81d-486a-8ec7-3a2532e7545e)
