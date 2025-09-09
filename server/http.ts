@@ -102,16 +102,16 @@ export async function startHttpServer(server: McpServer, port: number = 3000): P
   app.post('/messages', async (req: Request, res: Response) => {
     try {
       // Extract session ID from query string and clean it
-      let sessionId = req.query.sessionId as string;
+      let sessionId = req.query.sessionId;
       
-      if (!sessionId) {
-        console.error('No session ID provided');
+      if (!sessionId || typeof sessionId !== 'string') {
+        console.error('Invalid or no session ID provided');
         return res.status(400).json({
           jsonrpc: '2.0',
           id: null,
           error: {
             code: -32602,
-            message: 'Session ID required'
+            message: 'Valid session ID required'
           }
         });
       }
